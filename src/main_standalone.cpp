@@ -185,6 +185,32 @@ int selfTestChunks()
               << (okNeg ? "  OK" : "  FALLO") << "\n";
     if (!okNeg) failures += 1;
 
+    // B2. Borrar un voxel que esta en X-Ray: no basta con quitar su slot, hay
+    //     que retirar tambien su Geode translucido o queda un cubo fantasma.
+    grid.setVoxel(20, 3, 12, MAT_STONE);
+    mesher.rebuildMesh();
+    mesher.setXRay(20, 3, 12, true);
+    grid.setVoxel(20, 3, 12, 0);
+    mesher.rebuildMesh();
+    const bool okBorrado = !mesher.hasSlot(20, 3, 12) && !mesher.isXRay(20, 3, 12);
+    std::cout << "[selftest] X-Ray + borrado: slot=" << mesher.hasSlot(20, 3, 12)
+              << " xray=" << mesher.isXRay(20, 3, 12)
+              << (okBorrado ? "  OK" : "  FALLO") << "\n";
+    if (!okBorrado) failures += 1;
+
+    // B3. Convertir a liquido un voxel en X-Ray: los liquidos no llevan slot,
+    //     y el Geode conservaria el color solido anterior.
+    grid.setVoxel(22, 3, 12, MAT_STONE);
+    mesher.rebuildMesh();
+    mesher.setXRay(22, 3, 12, true);
+    grid.setVoxel(22, 3, 12, MAT_WATER);
+    mesher.rebuildMesh();
+    const bool okAgua = !mesher.hasSlot(22, 3, 12) && !mesher.isXRay(22, 3, 12);
+    std::cout << "[selftest] X-Ray -> agua: slot=" << mesher.hasSlot(22, 3, 12)
+              << " xray=" << mesher.isXRay(22, 3, 12)
+              << (okAgua ? "  OK" : "  FALLO") << "\n";
+    if (!okAgua) failures += 1;
+
     // D. Vaciar un chunk debe retirarlo: si no, se acumulan Geodes vacios.
     const size_t chunksConAislado = mesher.chunkCount();
     grid.setVoxel(-17, 0, -17, 0);

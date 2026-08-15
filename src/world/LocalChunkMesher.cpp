@@ -348,16 +348,27 @@ void LocalChunkMesher::rebuildChunk(const ChunkCoord& coord)
     chunk.baseVertices.assign(chunk.vertices->begin(), chunk.vertices->end());
     applyChunkGeometry(chunk);
 
-    // El chunk se acaba de remallar con todos sus voxels visibles. Los que
-    // siguen en X-Ray hay que volver a colapsarlos, o quedarian dibujados dos
-    // veces: opacos en el lote y translucidos en su Geode.
+    // Reconciliar el X-Ray de este chunk. Se recogen las claves primero porque
+    // removeXRayVoxel modifica m_xray.
+    std::vector<VoxelKey> xrayHere;
     for (std::unordered_map<VoxelKey, XRayVisual, VoxelKeyHash>::const_iterator it = m_xray.begin();
          it != m_xray.end(); ++it) {
-        const std::unordered_map<VoxelKey, BatchSlot, VoxelKeyHash>::const_iterator slot =
-            m_slots.find(it->first);
-        if (slot != m_slots.end() && slot->second.chunk == coord) {
-            hideInBatch(it->first);
+        if (chunkOf(it->first.vx, it->first.vy, it->first.vz) == coord) {
+            xrayHere.push_back(it->first);
         }
+    }
+    for (size_t i = 0; i < xrayHere.size(); ++i) {
+        const VoxelKey& key = xrayHere[i];
+        if (m_slots.find(key) == m_slots.end()) {
+            // El voxel se borro o dejo de ser solido (el agua no lleva slot).
+            // Sin esto quedaria su Geode translucido flotando, con el color del
+            // material anterior.
+            removeXRayVoxel(key);
+            continue;
+        }
+        // Sigue siendo solido: el remallado lo dejo visible, hay que volver a
+        // colapsarlo o se dibuja dos veces, opaco y translucido.
+        hideInBatch(key);
     }
 
     // Un chunk sin geometria no debe quedarse en el grafo: editar en x=0
