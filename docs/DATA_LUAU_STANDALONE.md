@@ -61,7 +61,7 @@ Si sale `[arena] 4 cover pillars (default C++)`, el JSON no se leyó.
 
 CMake copia `data/` y `config.json` junto al exe, así que en disco puede haber varios
 árboles `data/` válidos a la vez. **Todo** —contenido, mapas, scripts, plantillas y
-partidas— se resuelve contra una única raíz, en `src/standalone/DataRoot.{h,cpp}`:
+partidas— se resuelve contra una única raíz, en `src/engine/DataRoot.{h,cpp}`:
 
 **Manda la ubicación del ejecutable, no el CWD.** Las bases se recorren en este orden:
 directorio del exe, sus tres padres, y el CWD **el último**. Sobre esa lista:
@@ -104,7 +104,7 @@ El estado del jugador vive en dos sitios distintos y **no se pisan**:
 | `data/player/save/sandbox_storage.json` | Partida: flags de quest + `vocationId` | ignorado |
 | `data/player/save/sandbox_inventory.json` | Partida: stacks del inventario | ignorado |
 
-Regla, en `src/standalone/PlayerSave.{h,cpp}`:
+Regla, en `src/engine/PlayerSave.{h,cpp}`:
 
 - **Leer** → `playerLoadPath()`: la partida si existe, si no la plantilla.
 - **Escribir** → `playerSavePath()`: siempre bajo `data/player/save/`.
