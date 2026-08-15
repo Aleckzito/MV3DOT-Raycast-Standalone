@@ -18,12 +18,30 @@
 namespace rc {
 namespace standalone {
 
-// 16x16x16 mini-voxels por chunk. Con SHIFT/MASK el mapeo es un desplazamiento,
-// y funciona con coordenadas negativas porque el shift aritmetico redondea
-// hacia -infinito, que es justo lo que hace falta.
-const int CHUNK_SHIFT = 4;
-const int CHUNK_SIZE = 1 << CHUNK_SHIFT;
-const int CHUNK_MASK = CHUNK_SIZE - 1;
+// 16x16x16 mini-voxels por chunk.
+//
+// NO se usan >> y << para el mapeo: con coordenadas negativas el shift a la
+// derecha de un entero con signo es implementation-defined en C++17, y el shift
+// a la izquierda de un negativo es directamente UB. El jugador puede construir
+// en x o z negativos, asi que se usa division con redondeo a -infinito y
+// multiplicacion, que si estan definidas.
+const int CHUNK_SIZE = 16;
+
+// Division entera redondeando hacia -infinito (no hacia cero, como hace /).
+inline int floorDivChunk(int value)
+{
+    int q = value / CHUNK_SIZE;
+    if (value % CHUNK_SIZE != 0 && value < 0) {
+        q -= 1;
+    }
+    return q;
+}
+
+// Offset dentro del chunk, siempre en [0, CHUNK_SIZE).
+inline int localInChunk(int value)
+{
+    return value - floorDivChunk(value) * CHUNK_SIZE;
+}
 
 struct ChunkCoord {
     int cx = 0;
@@ -76,6 +94,10 @@ public:
     // Caras opacas emitidas en total, para comprobar que al destruir un voxel
     // aparecen las caras del vecino que estaban ocultas.
     size_t solidFaceCount() const;
+    // Diagnostico para el self-test.
+    bool hasSlot(int vx, int vy, int vz) const;
+    bool slotHidden(int vx, int vy, int vz) const;
+    bool isXRay(int vx, int vy, int vz) const;
 
 private:
     // Rango de vertices de un voxel dentro de la geometria de su chunk.

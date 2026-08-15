@@ -96,9 +96,9 @@ size_t LocalChunkMesher::drawableCount() const
 ChunkCoord LocalChunkMesher::chunkOf(int vx, int vy, int vz)
 {
     ChunkCoord c;
-    c.cx = vx >> CHUNK_SHIFT;
-    c.cy = vy >> CHUNK_SHIFT;
-    c.cz = vz >> CHUNK_SHIFT;
+    c.cx = floorDivChunk(vx);
+    c.cy = floorDivChunk(vy);
+    c.cz = floorDivChunk(vz);
     return c;
 }
 
@@ -112,15 +112,16 @@ void LocalChunkMesher::collectDirty(
 
         // Frontera: el vecino tenia una cara oculta contra este voxel (o al
         // reves), asi que su malla tambien deja de ser valida.
-        const int lx = k.vx & CHUNK_MASK;
-        const int ly = k.vy & CHUNK_MASK;
-        const int lz = k.vz & CHUNK_MASK;
+        const int lx = localInChunk(k.vx);
+        const int ly = localInChunk(k.vy);
+        const int lz = localInChunk(k.vz);
+        const int last = CHUNK_SIZE - 1;
         if (lx == 0) out.insert(chunkOf(k.vx - 1, k.vy, k.vz));
-        if (lx == CHUNK_MASK) out.insert(chunkOf(k.vx + 1, k.vy, k.vz));
+        if (lx == last) out.insert(chunkOf(k.vx + 1, k.vy, k.vz));
         if (ly == 0) out.insert(chunkOf(k.vx, k.vy - 1, k.vz));
-        if (ly == CHUNK_MASK) out.insert(chunkOf(k.vx, k.vy + 1, k.vz));
+        if (ly == last) out.insert(chunkOf(k.vx, k.vy + 1, k.vz));
         if (lz == 0) out.insert(chunkOf(k.vx, k.vy, k.vz - 1));
-        if (lz == CHUNK_MASK) out.insert(chunkOf(k.vx, k.vy, k.vz + 1));
+        if (lz == last) out.insert(chunkOf(k.vx, k.vy, k.vz + 1));
     }
 }
 
@@ -271,9 +272,10 @@ void LocalChunkMesher::rebuildChunk(const ChunkCoord& coord)
     resetArray(chunk.liquidColors);
     chunk.baseVertices.clear();
 
-    const int baseX = coord.cx << CHUNK_SHIFT;
-    const int baseY = coord.cy << CHUNK_SHIFT;
-    const int baseZ = coord.cz << CHUNK_SHIFT;
+    // Multiplicacion, no shift: cx puede ser negativo y << seria UB.
+    const int baseX = coord.cx * CHUNK_SIZE;
+    const int baseY = coord.cy * CHUNK_SIZE;
+    const int baseZ = coord.cz * CHUNK_SIZE;
 
     for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
         for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
@@ -281,15 +283,20 @@ void LocalChunkMesher::rebuildChunk(const ChunkCoord& coord)
                 const int vx = baseX + lx;
                 const int vy = baseY + ly;
                 const int vz = baseZ + lz;
-                const MiniVoxel voxel = m_grid->getVoxel(vx, vy, vz);
-                if (!voxel.isActive) {
-                    continue;
-                }
 
                 VoxelKey key;
                 key.vx = vx;
                 key.vy = vy;
                 key.vz = vz;
+
+                // Se purga el slot antes de decidir: si el voxel se borro, su
+                // slot apuntaria a vertices que ahora son de otro voxel.
+                m_slots.erase(key);
+
+                const MiniVoxel voxel = m_grid->getVoxel(vx, vy, vz);
+                if (!voxel.isActive) {
+                    continue;
+                }
 
                 const bool liquid = materialIsLiquid(voxel.materialId);
                 const osg::Vec4 col = colorOf(voxel.materialId);
@@ -333,8 +340,6 @@ void LocalChunkMesher::rebuildChunk(const ChunkCoord& coord)
                 // Solo los solidos entran en slots: el X-Ray no toca liquidos.
                 if (slot.count > 0 && !liquid) {
                     m_slots[key] = slot;
-                } else {
-                    m_slots.erase(key);
                 }
             }
         }
@@ -342,6 +347,27 @@ void LocalChunkMesher::rebuildChunk(const ChunkCoord& coord)
 
     chunk.baseVertices.assign(chunk.vertices->begin(), chunk.vertices->end());
     applyChunkGeometry(chunk);
+
+    // El chunk se acaba de remallar con todos sus voxels visibles. Los que
+    // siguen en X-Ray hay que volver a colapsarlos, o quedarian dibujados dos
+    // veces: opacos en el lote y translucidos en su Geode.
+    for (std::unordered_map<VoxelKey, XRayVisual, VoxelKeyHash>::const_iterator it = m_xray.begin();
+         it != m_xray.end(); ++it) {
+        const std::unordered_map<VoxelKey, BatchSlot, VoxelKeyHash>::const_iterator slot =
+            m_slots.find(it->first);
+        if (slot != m_slots.end() && slot->second.chunk == coord) {
+            hideInBatch(it->first);
+        }
+    }
+
+    // Un chunk sin geometria no debe quedarse en el grafo: editar en x=0
+    // invalida el chunk -1, que puede no existir, y acumularia Geodes vacios.
+    if (chunk.vertices->empty() && chunk.liquidVertices->empty()) {
+        if (chunk.geode.valid()) {
+            m_terrainRoot->removeChild(chunk.geode.get());
+        }
+        m_chunks.erase(coord);
+    }
 }
 
 void LocalChunkMesher::applyChunkGeometry(Chunk& chunk)
@@ -522,6 +548,35 @@ size_t LocalChunkMesher::solidFaceCount() const
         }
     }
     return faces;
+}
+
+bool LocalChunkMesher::hasSlot(int vx, int vy, int vz) const
+{
+    VoxelKey key;
+    key.vx = vx;
+    key.vy = vy;
+    key.vz = vz;
+    return m_slots.find(key) != m_slots.end();
+}
+
+bool LocalChunkMesher::slotHidden(int vx, int vy, int vz) const
+{
+    VoxelKey key;
+    key.vx = vx;
+    key.vy = vy;
+    key.vz = vz;
+    const std::unordered_map<VoxelKey, BatchSlot, VoxelKeyHash>::const_iterator it =
+        m_slots.find(key);
+    return it != m_slots.end() && it->second.hidden;
+}
+
+bool LocalChunkMesher::isXRay(int vx, int vy, int vz) const
+{
+    VoxelKey key;
+    key.vx = vx;
+    key.vy = vy;
+    key.vz = vz;
+    return m_xray.find(key) != m_xray.end();
 }
 
 osg::Node* LocalChunkMesher::getNode()

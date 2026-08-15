@@ -141,6 +141,61 @@ int selfTestChunks()
         failures += 1;
     }
 
+    // --- Casos de regresion ---
+
+    // A. Borrar un voxel visible debe eliminar su slot, no dejarlo apuntando a
+    //    vertices que ahora pertenecen a otro voxel.
+    grid.setVoxel(10, 3, 10, MAT_STONE);
+    mesher.rebuildMesh();
+    const bool slotAntes = mesher.hasSlot(10, 3, 10);
+    grid.setVoxel(10, 3, 10, 0);
+    mesher.rebuildMesh();
+    const bool slotDespues = mesher.hasSlot(10, 3, 10);
+    const bool okSlot = slotAntes && !slotDespues;
+    std::cout << "[selftest] slot tras borrado: antes=" << slotAntes
+              << " despues=" << slotDespues << (okSlot ? "  OK" : "  FALLO") << "\n";
+    if (!okSlot) failures += 1;
+
+    // B. Un chunk remallado con X-Ray activo debe dejar el voxel colapsado; si
+    //    no, se dibuja opaco y translucido a la vez.
+    mesher.setXRay(12, 3, 12, true);
+    const bool hiddenAntes = mesher.slotHidden(12, 3, 12);
+    // Mismo chunk y cambio REAL: repetir el material no ensucia el grid, y el
+    // caso quedaria sin ejercer nada.
+    grid.setVoxel(14, 3, 14, MAT_BRICK);
+    mesher.rebuildMesh();
+    const bool hiddenDespues = mesher.slotHidden(12, 3, 12);
+    const bool sigueXray = mesher.isXRay(12, 3, 12);
+    const bool okXray = hiddenAntes && hiddenDespues && sigueXray;
+    std::cout << "[selftest] X-Ray tras rebuild: oculto_antes=" << hiddenAntes
+              << " oculto_despues=" << hiddenDespues
+              << " en_xray=" << sigueXray << (okXray ? "  OK" : "  FALLO") << "\n";
+    if (!okXray) failures += 1;
+
+    // C. Coordenadas en cero y negativas: el mapeo no puede usar >> ni <<.
+    grid.setVoxel(0, 0, 0, MAT_STONE);
+    grid.setVoxel(-1, 0, 0, MAT_STONE);
+    grid.setVoxel(-17, 0, -17, MAT_STONE);
+    mesher.rebuildMesh();
+    const bool okNeg = mesher.hasSlot(0, 0, 0) && mesher.hasSlot(-1, 0, 0) &&
+                       mesher.hasSlot(-17, 0, -17);
+    std::cout << "[selftest] coords negativas: (0,0,0)=" << mesher.hasSlot(0, 0, 0)
+              << " (-1,0,0)=" << mesher.hasSlot(-1, 0, 0)
+              << " (-17,0,-17)=" << mesher.hasSlot(-17, 0, -17)
+              << (okNeg ? "  OK" : "  FALLO") << "\n";
+    if (!okNeg) failures += 1;
+
+    // D. Vaciar un chunk debe retirarlo: si no, se acumulan Geodes vacios.
+    const size_t chunksConAislado = mesher.chunkCount();
+    grid.setVoxel(-17, 0, -17, 0);
+    mesher.rebuildMesh();
+    const size_t chunksTrasVaciar = mesher.chunkCount();
+    const bool okVacio = chunksTrasVaciar < chunksConAislado;
+    std::cout << "[selftest] chunk vaciado: antes=" << chunksConAislado
+              << " despues=" << chunksTrasVaciar
+              << (okVacio ? "  OK" : "  FALLO") << "\n";
+    if (!okVacio) failures += 1;
+
     std::cout << "[selftest] " << (failures == 0 ? "TODO OK" : "FALLOS") << "\n";
     return failures == 0 ? 0 : 1;
 }
