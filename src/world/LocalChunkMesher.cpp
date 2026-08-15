@@ -11,6 +11,7 @@
 #include <osg/Shape>
 #include <osg/StateSet>
 
+#include <chrono>
 #include <iostream>
 
 namespace rc {
@@ -33,7 +34,7 @@ osg::Vec4 ambientOf(uint16_t materialId)
 // Las 6 caras: normal y los 4 vertices en orden antihorario visto desde fuera,
 // en coordenadas locales [0,1] dentro de la celda.
 struct Face {
-    int dx, dy, dz;              // vecino que la tapa
+    int dx, dy, dz;
     osg::Vec3 normal;
     osg::Vec3 corner[4];
 };
@@ -53,6 +54,24 @@ const Face kFaces[6] = {
       { osg::Vec3(0, 0, 0), osg::Vec3(1, 0, 0), osg::Vec3(1, 0, 1), osg::Vec3(0, 0, 1) } }
 };
 
+void resetArray(osg::ref_ptr<osg::Vec3Array>& arr)
+{
+    if (!arr.valid()) {
+        arr = new osg::Vec3Array;
+    } else {
+        arr->clear();
+    }
+}
+
+void resetArray(osg::ref_ptr<osg::Vec4Array>& arr)
+{
+    if (!arr.valid()) {
+        arr = new osg::Vec4Array;
+    } else {
+        arr->clear();
+    }
+}
+
 } // namespace
 
 LocalChunkMesher::LocalChunkMesher()
@@ -60,6 +79,8 @@ LocalChunkMesher::LocalChunkMesher()
 {
     // 10.3 Holder estable en el grafo. Nunca se saca de m_root.
     m_holder = new osg::Group;
+    m_terrainRoot = new osg::Group;
+    m_holder->addChild(m_terrainRoot.get());
 }
 
 void LocalChunkMesher::setGrid(const MiniVoxelGrid* grid)
@@ -72,23 +93,120 @@ size_t LocalChunkMesher::drawableCount() const
     return m_holder.valid() ? m_holder->getNumChildren() : 0;
 }
 
+ChunkCoord LocalChunkMesher::chunkOf(int vx, int vy, int vz)
+{
+    ChunkCoord c;
+    c.cx = vx >> CHUNK_SHIFT;
+    c.cy = vy >> CHUNK_SHIFT;
+    c.cz = vz >> CHUNK_SHIFT;
+    return c;
+}
+
+void LocalChunkMesher::collectDirty(
+    std::unordered_set<ChunkCoord, ChunkCoordHash>& out) const
+{
+    const std::vector<VoxelKey>& dirty = m_grid->dirtyVoxels();
+    for (size_t i = 0; i < dirty.size(); ++i) {
+        const VoxelKey& k = dirty[i];
+        out.insert(chunkOf(k.vx, k.vy, k.vz));
+
+        // Frontera: el vecino tenia una cara oculta contra este voxel (o al
+        // reves), asi que su malla tambien deja de ser valida.
+        const int lx = k.vx & CHUNK_MASK;
+        const int ly = k.vy & CHUNK_MASK;
+        const int lz = k.vz & CHUNK_MASK;
+        if (lx == 0) out.insert(chunkOf(k.vx - 1, k.vy, k.vz));
+        if (lx == CHUNK_MASK) out.insert(chunkOf(k.vx + 1, k.vy, k.vz));
+        if (ly == 0) out.insert(chunkOf(k.vx, k.vy - 1, k.vz));
+        if (ly == CHUNK_MASK) out.insert(chunkOf(k.vx, k.vy + 1, k.vz));
+        if (lz == 0) out.insert(chunkOf(k.vx, k.vy, k.vz - 1));
+        if (lz == CHUNK_MASK) out.insert(chunkOf(k.vx, k.vy, k.vz + 1));
+    }
+}
+
 void LocalChunkMesher::rebuildMesh()
 {
-    // Preserva el X-Ray de los voxels que sigan vivos tras el rebuild.
-    std::vector<VoxelKey> wasXray;
-    for (auto it = m_xray.begin(); it != m_xray.end(); ++it) {
-        wasXray.push_back(it->first);
-    }
-
-    m_holder->removeChildren(0, m_holder->getNumChildren());
-    m_xray.clear();
-    m_slots.clear();
-
     if (m_grid == nullptr) {
         return;
     }
+    const std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
 
-    buildBatch();
+    const size_t dirtyVoxels = m_grid->dirtyVoxels().size();
+    size_t rebuilt = 0;
+    bool full = false;
+    if (m_grid->dirtyAll()) {
+        rebuildAll();
+        rebuilt = m_chunks.size();
+        full = true;
+    } else {
+        if (m_grid->dirtyVoxels().empty()) {
+            return;  // nada que rehacer: ni un voxel cambio
+        }
+        std::unordered_set<ChunkCoord, ChunkCoordHash> dirty;
+        collectDirty(dirty);
+        for (std::unordered_set<ChunkCoord, ChunkCoordHash>::const_iterator it = dirty.begin();
+             it != dirty.end(); ++it) {
+            rebuildChunk(*it);
+        }
+        rebuilt = dirty.size();
+    }
+
+    m_lastRebuiltChunks = rebuilt;
+    // El grid ya esta al dia con la malla.
+    const_cast<MiniVoxelGrid*>(m_grid)->clearDirty();
+
+    m_lastRebuildMs = std::chrono::duration<double, std::milli>(
+                          std::chrono::steady_clock::now() - t0).count();
+
+    size_t faces = 0;
+    size_t liquidFaces = 0;
+    for (std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash>::const_iterator it = m_chunks.begin();
+         it != m_chunks.end(); ++it) {
+        if (it->second.vertices.valid()) faces += it->second.vertices->size() / 4;
+        if (it->second.liquidVertices.valid()) liquidFaces += it->second.liquidVertices->size() / 4;
+    }
+
+    std::cout << "[mesh] dirty=" << (full ? m_chunks.size() : dirtyVoxels)
+              << " rebuilt=" << rebuilt << "/" << m_chunks.size()
+              << " ms=" << m_lastRebuildMs
+              << (full ? " (full)" : " (parcial)")
+              << " voxels=" << m_slots.size()
+              << " caras=" << faces;
+    if (liquidFaces > 0) {
+        std::cout << " liquido=" << liquidFaces;
+    }
+    std::cout << "\n";
+}
+
+void LocalChunkMesher::rebuildAll()
+{
+    // Se conserva el X-Ray de los voxels que sigan vivos.
+    std::vector<VoxelKey> wasXray;
+    for (std::unordered_map<VoxelKey, XRayVisual, VoxelKeyHash>::const_iterator it = m_xray.begin();
+         it != m_xray.end(); ++it) {
+        wasXray.push_back(it->first);
+    }
+    for (size_t i = 0; i < wasXray.size(); ++i) {
+        removeXRayVoxel(wasXray[i]);
+    }
+
+    m_terrainRoot->removeChildren(0, m_terrainRoot->getNumChildren());
+    m_chunks.clear();
+    m_slots.clear();
+
+    // Un pase sobre el grid para saber que chunks existen.
+    std::unordered_set<ChunkCoord, ChunkCoordHash> present;
+    const VoxelMap& map = m_grid->voxels();
+    for (VoxelMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+        if (!it->second.isActive) {
+            continue;
+        }
+        present.insert(chunkOf(it->first.vx, it->first.vy, it->first.vz));
+    }
+    for (std::unordered_set<ChunkCoord, ChunkCoordHash>::const_iterator it = present.begin();
+         it != present.end(); ++it) {
+        rebuildChunk(*it);
+    }
 
     for (size_t i = 0; i < wasXray.size(); ++i) {
         if (m_slots.find(wasXray[i]) != m_slots.end()) {
@@ -98,175 +216,205 @@ void LocalChunkMesher::rebuildMesh()
     }
 }
 
-void LocalChunkMesher::buildBatch()
+LocalChunkMesher::Chunk& LocalChunkMesher::ensureChunk(const ChunkCoord& coord)
 {
-    m_vertices = new osg::Vec3Array;
-    m_normals = new osg::Vec3Array;
-    m_colors = new osg::Vec4Array;
-    m_liquidVertices = new osg::Vec3Array;
-    m_liquidNormals = new osg::Vec3Array;
-    m_liquidColors = new osg::Vec4Array;
-    m_baseVertices.clear();
-
-    const VoxelMap& map = m_grid->voxels();
-
-    for (VoxelMap::const_iterator it = map.begin(); it != map.end(); ++it) {
-        if (!it->second.isActive) {
-            continue;
-        }
-        const VoxelKey& key = it->first;
-        const uint16_t mat = it->second.materialId;
-        const bool liquid = materialIsLiquid(mat);
-        const osg::Vec4 col = colorOf(mat);
-
-        osg::Vec3Array* verts = liquid ? m_liquidVertices.get() : m_vertices.get();
-        osg::Vec3Array* norms = liquid ? m_liquidNormals.get() : m_normals.get();
-        osg::Vec4Array* cols = liquid ? m_liquidColors.get() : m_colors.get();
-
-        BatchSlot slot;
-        slot.first = verts->size();
-        slot.count = 0;
-
-        for (int f = 0; f < 6; ++f) {
-            const Face& face = kFaces[f];
-            const MiniVoxel neighbor =
-                m_grid->getVoxel(key.vx + face.dx, key.vy + face.dy, key.vz + face.dz);
-            if (neighbor.isActive) {
-                // En la frontera agua-solido manda el solido: es quien dibuja la
-                // pared del cauce. Si el agua emitiera tambien su cara ahi, las
-                // dos quedarian coplanares (z-fighting y blending sobre si mismo).
-                if (liquid) {
-                    continue;
-                }
-                if (!materialIsLiquid(neighbor.materialId)) {
-                    continue;
-                }
-            }
-            for (int c = 0; c < 4; ++c) {
-                const osg::Vec3 local = face.corner[c];
-                verts->push_back(osg::Vec3(
-                    (static_cast<float>(key.vx) + local.x()) * MINI_VOXEL_SIZE,
-                    (static_cast<float>(key.vy) + local.y()) * MINI_VOXEL_SIZE,
-                    (static_cast<float>(key.vz) + local.z()) * MINI_VOXEL_SIZE));
-                norms->push_back(face.normal);
-                cols->push_back(col);
-            }
-            slot.count += 4;
-        }
-
-        // Solo los solidos entran en slots: el X-Ray no se aplica a liquidos.
-        if (slot.count > 0 && !liquid) {
-            m_slots[key] = slot;
-        }
+    Chunk& chunk = m_chunks[coord];
+    if (chunk.geode.valid()) {
+        return chunk;
     }
 
-    m_baseVertices.assign(m_vertices->begin(), m_vertices->end());
-
-    m_batchGeometry = new osg::Geometry;
-    m_batchGeometry->setVertexArray(m_vertices.get());
-    m_batchGeometry->setNormalArray(m_normals.get(), osg::Array::BIND_PER_VERTEX);
-    m_batchGeometry->setColorArray(m_colors.get(), osg::Array::BIND_PER_VERTEX);
-    m_batchGeometry->addPrimitiveSet(
-        new osg::DrawArrays(GL_QUADS, 0, static_cast<int>(m_vertices->size())));
-    // Los vertices se reescriben al entrar y salir del X-Ray.
-    m_batchGeometry->setUseDisplayList(false);
-    m_batchGeometry->setUseVertexBufferObjects(true);
-
-    m_batchGeode = new osg::Geode;
-    m_batchGeode->addDrawable(m_batchGeometry.get());
+    chunk.geode = new osg::Geode;
+    chunk.solid = new osg::Geometry;
+    chunk.liquid = new osg::Geometry;
+    chunk.solid->setUseDisplayList(false);
+    chunk.solid->setUseVertexBufferObjects(true);
+    chunk.liquid->setUseDisplayList(false);
+    chunk.liquid->setUseVertexBufferObjects(true);
 
     osg::ref_ptr<osg::Material> material = new osg::Material;
     material->setColorMode(osg::Material::AMBIENT_AND_DIFFUSE);
     material->setSpecular(osg::Material::FRONT_AND_BACK, osg::Vec4(0.08f, 0.08f, 0.08f, 1.0f));
     material->setShininess(osg::Material::FRONT_AND_BACK, 8.0f);
 
-    osg::StateSet* state = m_batchGeode->getOrCreateStateSet();
+    osg::StateSet* state = chunk.geode->getOrCreateStateSet();
     state->setAttributeAndModes(material.get(), osg::StateAttribute::ON);
     state->setAttributeAndModes(new osg::PolygonOffset(1.0f, 1.0f), osg::StateAttribute::ON);
     state->setMode(GL_LIGHTING, osg::StateAttribute::ON);
-    state->setMode(GL_BLEND, osg::StateAttribute::OFF);
     state->setRenderingHint(osg::StateSet::OPAQUE_BIN);
 
-    m_holder->addChild(m_batchGeode.get());
+    // El liquido lleva su propio StateSet: bin transparente y sin escritura de
+    // profundidad, para no tapar lo que hay detras.
+    osg::StateSet* liquidState = chunk.liquid->getOrCreateStateSet();
+    liquidState->setMode(GL_BLEND, osg::StateAttribute::ON);
+    liquidState->setAttributeAndModes(
+        new osg::BlendFunc(osg::BlendFunc::SRC_ALPHA, osg::BlendFunc::ONE_MINUS_SRC_ALPHA),
+        osg::StateAttribute::ON);
+    liquidState->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+    liquidState->setAttributeAndModes(
+        new osg::Depth(osg::Depth::LEQUAL, 0.0, 1.0, false), osg::StateAttribute::ON);
 
-    // Lote de liquidos, solo si el mapa tiene agua.
-    size_t liquidFaces = 0;
-    if (!m_liquidVertices->empty()) {
-        liquidFaces = m_liquidVertices->size() / 4;
+    chunk.geode->addDrawable(chunk.solid.get());
+    chunk.geode->addDrawable(chunk.liquid.get());
+    m_terrainRoot->addChild(chunk.geode.get());
+    return chunk;
+}
 
-        m_liquidGeometry = new osg::Geometry;
-        m_liquidGeometry->setVertexArray(m_liquidVertices.get());
-        m_liquidGeometry->setNormalArray(m_liquidNormals.get(), osg::Array::BIND_PER_VERTEX);
-        m_liquidGeometry->setColorArray(m_liquidColors.get(), osg::Array::BIND_PER_VERTEX);
-        m_liquidGeometry->addPrimitiveSet(
-            new osg::DrawArrays(GL_QUADS, 0, static_cast<int>(m_liquidVertices->size())));
-        m_liquidGeometry->setUseVertexBufferObjects(true);
+void LocalChunkMesher::rebuildChunk(const ChunkCoord& coord)
+{
+    Chunk& chunk = ensureChunk(coord);
 
-        m_liquidGeode = new osg::Geode;
-        m_liquidGeode->addDrawable(m_liquidGeometry.get());
+    resetArray(chunk.vertices);
+    resetArray(chunk.normals);
+    resetArray(chunk.colors);
+    resetArray(chunk.liquidVertices);
+    resetArray(chunk.liquidNormals);
+    resetArray(chunk.liquidColors);
+    chunk.baseVertices.clear();
 
-        osg::ref_ptr<osg::Material> liquidMat = new osg::Material;
-        liquidMat->setColorMode(osg::Material::AMBIENT_AND_DIFFUSE);
-        liquidMat->setSpecular(osg::Material::FRONT_AND_BACK,
-                               osg::Vec4(0.20f, 0.24f, 0.26f, 1.0f));
-        liquidMat->setShininess(osg::Material::FRONT_AND_BACK, 24.0f);
+    const int baseX = coord.cx << CHUNK_SHIFT;
+    const int baseY = coord.cy << CHUNK_SHIFT;
+    const int baseZ = coord.cz << CHUNK_SHIFT;
 
-        osg::StateSet* liquidState = m_liquidGeode->getOrCreateStateSet();
-        liquidState->setAttributeAndModes(liquidMat.get(), osg::StateAttribute::ON);
-        liquidState->setMode(GL_LIGHTING, osg::StateAttribute::ON);
-        liquidState->setMode(GL_BLEND, osg::StateAttribute::ON);
-        liquidState->setAttributeAndModes(
-            new osg::BlendFunc(osg::BlendFunc::SRC_ALPHA, osg::BlendFunc::ONE_MINUS_SRC_ALPHA),
-            osg::StateAttribute::ON);
-        liquidState->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-        // Sin escritura de profundidad: el agua no debe tapar lo que hay detras.
-        liquidState->setAttributeAndModes(
-            new osg::Depth(osg::Depth::LEQUAL, 0.0, 1.0, false), osg::StateAttribute::ON);
+    for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+        for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
+            for (int lz = 0; lz < CHUNK_SIZE; ++lz) {
+                const int vx = baseX + lx;
+                const int vy = baseY + ly;
+                const int vz = baseZ + lz;
+                const MiniVoxel voxel = m_grid->getVoxel(vx, vy, vz);
+                if (!voxel.isActive) {
+                    continue;
+                }
 
-        m_holder->addChild(m_liquidGeode.get());
+                VoxelKey key;
+                key.vx = vx;
+                key.vy = vy;
+                key.vz = vz;
+
+                const bool liquid = materialIsLiquid(voxel.materialId);
+                const osg::Vec4 col = colorOf(voxel.materialId);
+                osg::Vec3Array* verts = liquid ? chunk.liquidVertices.get() : chunk.vertices.get();
+                osg::Vec3Array* norms = liquid ? chunk.liquidNormals.get() : chunk.normals.get();
+                osg::Vec4Array* cols = liquid ? chunk.liquidColors.get() : chunk.colors.get();
+
+                BatchSlot slot;
+                slot.chunk = coord;
+                slot.first = verts->size();
+                slot.count = 0;
+
+                for (int f = 0; f < 6; ++f) {
+                    const Face& face = kFaces[f];
+                    // El vecino puede estar en otro chunk: se consulta al grid,
+                    // que es la fuente de verdad, no a la malla del chunk.
+                    const MiniVoxel neighbor =
+                        m_grid->getVoxel(vx + face.dx, vy + face.dy, vz + face.dz);
+                    if (neighbor.isActive) {
+                        // En la frontera agua-solido manda el solido: si el agua
+                        // emitiera tambien su cara, quedarian coplanares.
+                        if (liquid) {
+                            continue;
+                        }
+                        if (!materialIsLiquid(neighbor.materialId)) {
+                            continue;
+                        }
+                    }
+                    for (int c = 0; c < 4; ++c) {
+                        const osg::Vec3 local = face.corner[c];
+                        verts->push_back(osg::Vec3(
+                            (static_cast<float>(vx) + local.x()) * MINI_VOXEL_SIZE,
+                            (static_cast<float>(vy) + local.y()) * MINI_VOXEL_SIZE,
+                            (static_cast<float>(vz) + local.z()) * MINI_VOXEL_SIZE));
+                        norms->push_back(face.normal);
+                        cols->push_back(col);
+                    }
+                    slot.count += 4;
+                }
+
+                // Solo los solidos entran en slots: el X-Ray no toca liquidos.
+                if (slot.count > 0 && !liquid) {
+                    m_slots[key] = slot;
+                } else {
+                    m_slots.erase(key);
+                }
+            }
+        }
     }
 
-    // Caras internas descartadas: util para ver de un vistazo cuanto ahorra el
-    // culling en un mapa dado (6 caras por voxel seria el peor caso).
-    const size_t faces = m_vertices->size() / 4;
-    std::cout << "[mesh] voxels=" << m_slots.size()
-              << " caras=" << faces
-              << " (de " << (m_slots.size() * 6) << " sin culling)";
-    if (liquidFaces > 0) {
-        std::cout << " liquido=" << liquidFaces;
+    chunk.baseVertices.assign(chunk.vertices->begin(), chunk.vertices->end());
+    applyChunkGeometry(chunk);
+}
+
+void LocalChunkMesher::applyChunkGeometry(Chunk& chunk)
+{
+    chunk.solid->setVertexArray(chunk.vertices.get());
+    chunk.solid->setNormalArray(chunk.normals.get(), osg::Array::BIND_PER_VERTEX);
+    chunk.solid->setColorArray(chunk.colors.get(), osg::Array::BIND_PER_VERTEX);
+    chunk.solid->removePrimitiveSet(0, chunk.solid->getNumPrimitiveSets());
+    if (!chunk.vertices->empty()) {
+        chunk.solid->addPrimitiveSet(
+            new osg::DrawArrays(GL_QUADS, 0, static_cast<int>(chunk.vertices->size())));
     }
-    std::cout << " drawables=" << m_holder->getNumChildren() << "\n";
+    chunk.solid->dirtyBound();
+
+    chunk.liquid->setVertexArray(chunk.liquidVertices.get());
+    chunk.liquid->setNormalArray(chunk.liquidNormals.get(), osg::Array::BIND_PER_VERTEX);
+    chunk.liquid->setColorArray(chunk.liquidColors.get(), osg::Array::BIND_PER_VERTEX);
+    chunk.liquid->removePrimitiveSet(0, chunk.liquid->getNumPrimitiveSets());
+    if (!chunk.liquidVertices->empty()) {
+        chunk.liquid->addPrimitiveSet(
+            new osg::DrawArrays(GL_QUADS, 0, static_cast<int>(chunk.liquidVertices->size())));
+    }
+    chunk.liquid->dirtyBound();
 }
 
 void LocalChunkMesher::hideInBatch(const VoxelKey& key)
 {
     std::unordered_map<VoxelKey, BatchSlot, VoxelKeyHash>::iterator it = m_slots.find(key);
-    if (it == m_slots.end() || it->second.hidden || !m_vertices.valid()) {
+    if (it == m_slots.end() || it->second.hidden) {
         return;
     }
-    // Colapsar los vertices degenera los quads: dejan de pintarse sin tocar
-    // los indices ni reconstruir el lote. Es O(caras del voxel).
-    const osg::Vec3 collapse = (*m_vertices)[it->second.first];
+    std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash>::iterator ch =
+        m_chunks.find(it->second.chunk);
+    if (ch == m_chunks.end() || !ch->second.vertices.valid()) {
+        return;
+    }
+    osg::Vec3Array& verts = *ch->second.vertices;
+    if (it->second.first + it->second.count > verts.size()) {
+        return;
+    }
+    // Colapsar los vertices degenera los quads: dejan de pintarse sin tocar los
+    // indices ni remallar el chunk. Es O(caras del voxel).
+    const osg::Vec3 collapse = verts[it->second.first];
     for (size_t i = 0; i < it->second.count; ++i) {
-        (*m_vertices)[it->second.first + i] = collapse;
+        verts[it->second.first + i] = collapse;
     }
     it->second.hidden = true;
-    m_vertices->dirty();
-    m_batchGeometry->dirtyBound();
+    verts.dirty();
+    ch->second.solid->dirtyBound();
 }
 
 void LocalChunkMesher::showInBatch(const VoxelKey& key)
 {
     std::unordered_map<VoxelKey, BatchSlot, VoxelKeyHash>::iterator it = m_slots.find(key);
-    if (it == m_slots.end() || !it->second.hidden || !m_vertices.valid()) {
+    if (it == m_slots.end() || !it->second.hidden) {
+        return;
+    }
+    std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash>::iterator ch =
+        m_chunks.find(it->second.chunk);
+    if (ch == m_chunks.end() || !ch->second.vertices.valid()) {
+        return;
+    }
+    osg::Vec3Array& verts = *ch->second.vertices;
+    if (it->second.first + it->second.count > verts.size() ||
+        it->second.first + it->second.count > ch->second.baseVertices.size()) {
         return;
     }
     for (size_t i = 0; i < it->second.count; ++i) {
-        (*m_vertices)[it->second.first + i] = m_baseVertices[it->second.first + i];
+        verts[it->second.first + i] = ch->second.baseVertices[it->second.first + i];
     }
     it->second.hidden = false;
-    m_vertices->dirty();
-    m_batchGeometry->dirtyBound();
+    verts.dirty();
+    ch->second.solid->dirtyBound();
 }
 
 void LocalChunkMesher::addXRayVoxel(const VoxelKey& key)
@@ -362,6 +510,18 @@ void LocalChunkMesher::setXRay(int vx, int vy, int vz, bool enabled)
         removeXRayVoxel(key);
         showInBatch(key);
     }
+}
+
+size_t LocalChunkMesher::solidFaceCount() const
+{
+    size_t faces = 0;
+    for (std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash>::const_iterator it = m_chunks.begin();
+         it != m_chunks.end(); ++it) {
+        if (it->second.vertices.valid()) {
+            faces += it->second.vertices->size() / 4;
+        }
+    }
+    return faces;
 }
 
 osg::Node* LocalChunkMesher::getNode()

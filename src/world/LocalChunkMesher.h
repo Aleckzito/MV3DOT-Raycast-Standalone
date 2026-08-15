@@ -12,39 +12,91 @@
 #include <osg/ref_ptr>
 
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace rc {
 namespace standalone {
 
-// 9 / 57. Mesher local. Cero packets.
+// 16x16x16 mini-voxels por chunk. Con SHIFT/MASK el mapeo es un desplazamiento,
+// y funciona con coordenadas negativas porque el shift aritmetico redondea
+// hacia -infinito, que es justo lo que hace falta.
+const int CHUNK_SHIFT = 4;
+const int CHUNK_SIZE = 1 << CHUNK_SHIFT;
+const int CHUNK_MASK = CHUNK_SIZE - 1;
+
+struct ChunkCoord {
+    int cx = 0;
+    int cy = 0;
+    int cz = 0;
+};
+
+inline bool operator==(const ChunkCoord& a, const ChunkCoord& b)
+{
+    return a.cx == b.cx && a.cy == b.cy && a.cz == b.cz;
+}
+
+struct ChunkCoordHash {
+    std::size_t operator()(const ChunkCoord& c) const
+    {
+        // Mismo esquema que VoxelKeyHash: primos grandes y mezcla, en vez de
+        // XOR de hashes desplazados, que colisiona en cuanto los ejes se cruzan.
+        const unsigned int x = static_cast<unsigned int>(c.cx);
+        const unsigned int y = static_cast<unsigned int>(c.cy);
+        const unsigned int z = static_cast<unsigned int>(c.cz);
+        return static_cast<std::size_t>(x * 73856093u ^ y * 19349663u ^ z * 83492791u);
+    }
+};
+
+// 9 / 57. Mesher local por chunks. Cero packets.
 //
-// El terreno estatico va en UNA sola geometria fusionada, sin caras internas
-// entre voxels adyacentes. Antes era un Geode por mini-voxel, lo que a 14k
-// voxels saturaba dos nucleos con el suelo vacio.
+// El terreno se parte en chunks de 16^3, cada uno con su geometria opaca y su
+// geometria de liquido. Al cambiar un voxel solo se remalla su chunk (y el
+// vecino si toca frontera), en vez del mapa entero: el rebuild global de la
+// arena costaba ~24 ms, mas que un frame completo a 60 fps.
 //
-// El X-Ray sigue siendo por voxel, que es lo que exigia aquel diseño: los pocos
-// voxels que ocluyen la camara salen del lote (sus vertices se colapsan, que es
-// una escritura O(1)) y se dibujan como Geode translucido propio. Al salir del
-// X-Ray vuelven al lote.
+// El X-Ray sigue siendo por voxel: los pocos que ocluyen la camara se colapsan
+// dentro del chunk al que pertenecen y se dibujan como Geode translucido propio.
 class LocalChunkMesher {
 public:
     LocalChunkMesher();
 
     void setGrid(const MiniVoxelGrid* grid);
+    // Remalla lo que haga falta: todo si el grid se limpio, o solo los chunks
+    // tocados desde la ultima llamada. Los puntos de llamada no cambian.
     void rebuildMesh();
     void setXRay(int vx, int vy, int vz, bool enabled);
     osg::Node* getNode();
 
-    // Diagnostico: nodos que cuelgan del holder (1 lote + N voxels en X-Ray).
     size_t drawableCount() const;
+    double lastRebuildMs() const { return m_lastRebuildMs; }
+    size_t chunkCount() const { return m_chunks.size(); }
+    // Chunks procesados en la ultima llamada a rebuildMesh.
+    size_t lastRebuiltChunks() const { return m_lastRebuiltChunks; }
+    // Caras opacas emitidas en total, para comprobar que al destruir un voxel
+    // aparecen las caras del vecino que estaban ocultas.
+    size_t solidFaceCount() const;
 
 private:
-    // Rango de vertices que ocupa un voxel dentro de la geometria fusionada.
+    // Rango de vertices de un voxel dentro de la geometria de su chunk.
     struct BatchSlot {
-        size_t first = 0;   // indice del primer vertice
-        size_t count = 0;   // vertices emitidos (4 por cara visible)
+        ChunkCoord chunk;
+        size_t first = 0;
+        size_t count = 0;
         bool hidden = false;
+    };
+
+    struct Chunk {
+        osg::ref_ptr<osg::Geode> geode;
+        osg::ref_ptr<osg::Geometry> solid;
+        osg::ref_ptr<osg::Geometry> liquid;
+        osg::ref_ptr<osg::Vec3Array> vertices;
+        osg::ref_ptr<osg::Vec3Array> normals;
+        osg::ref_ptr<osg::Vec4Array> colors;
+        osg::ref_ptr<osg::Vec3Array> liquidVertices;
+        osg::ref_ptr<osg::Vec3Array> liquidNormals;
+        osg::ref_ptr<osg::Vec4Array> liquidColors;
+        std::vector<osg::Vec3> baseVertices;
     };
 
     struct XRayVisual {
@@ -55,7 +107,14 @@ private:
         osg::Vec4 baseAmbient;
     };
 
-    void buildBatch();
+    static ChunkCoord chunkOf(int vx, int vy, int vz);
+
+    void rebuildAll();
+    void rebuildChunk(const ChunkCoord& coord);
+    void collectDirty(std::unordered_set<ChunkCoord, ChunkCoordHash>& out) const;
+    Chunk& ensureChunk(const ChunkCoord& coord);
+    void applyChunkGeometry(Chunk& chunk);
+
     void hideInBatch(const VoxelKey& key);
     void showInBatch(const VoxelKey& key);
     void addXRayVoxel(const VoxelKey& key);
@@ -63,24 +122,12 @@ private:
 
     const MiniVoxelGrid* m_grid;
     osg::ref_ptr<osg::Group> m_holder;
+    osg::ref_ptr<osg::Group> m_terrainRoot;
+    double m_lastRebuildMs = 0.0;
+    size_t m_lastRebuiltChunks = 0;
 
-    // Lote estatico opaco. Es el unico con slots: el X-Ray solo aplica a solidos.
-    osg::ref_ptr<osg::Geode> m_batchGeode;
-    osg::ref_ptr<osg::Geometry> m_batchGeometry;
-    osg::ref_ptr<osg::Vec3Array> m_vertices;
-    osg::ref_ptr<osg::Vec3Array> m_normals;
-    osg::ref_ptr<osg::Vec4Array> m_colors;
-    std::vector<osg::Vec3> m_baseVertices;  // copia para restaurar tras X-Ray
+    std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash> m_chunks;
     std::unordered_map<VoxelKey, BatchSlot, VoxelKeyHash> m_slots;
-
-    // Lote de liquidos: translucido, sin X-Ray, en el bin transparente.
-    osg::ref_ptr<osg::Geode> m_liquidGeode;
-    osg::ref_ptr<osg::Geometry> m_liquidGeometry;
-    osg::ref_ptr<osg::Vec3Array> m_liquidVertices;
-    osg::ref_ptr<osg::Vec3Array> m_liquidNormals;
-    osg::ref_ptr<osg::Vec4Array> m_liquidColors;
-
-    // Voxels actualmente en X-Ray, fuera del lote.
     std::unordered_map<VoxelKey, XRayVisual, VoxelKeyHash> m_xray;
 };
 
