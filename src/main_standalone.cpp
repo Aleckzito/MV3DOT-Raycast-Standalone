@@ -363,14 +363,47 @@ int selfTestAim()
         if (!ok) failures += 1;
     }
 
-    // Discriminante cero: raiz doble. Objetivo huyendo justo a la velocidad de
-    // la bala en linea recta, que nunca es alcanzado pero tampoco diverge.
+    // Discriminante exactamente cero CON a != 0, es decir raiz doble de verdad.
+    // D=(30,0,0), v=(-10,30,0), bala=30 => a=100, b=-600, c=900, disc=0, t=3.
+    // Hace falta un TTL largo o el limite taparia la raiz.
     {
-        const osg::Vec3 away(bullet, 0, 0);
-        const osg::Vec3 lead = computeLeadPoint(muzzle, target, away, bullet, 100.0f);
-        const bool ok = (lead - target).length() < 0.01f;
-        std::cout << "[selftest-aim] disc=0 (huye=bala) adelanto="
-                  << (lead - target).length() << " sin-solucion"
+        const osg::Vec3 v(-10, 30, 0);
+        const osg::Vec3 lead = computeLeadPoint(muzzle, target, v, bullet, 100.0f);
+        const osg::Vec3 expected(0, 90, 0);
+        const float tB = (lead - muzzle).length() / bullet;
+        const float error = (lead - (target + v * tB)).length();
+        const bool ok = (lead - expected).length() < 0.05f && error < 0.05f;
+        std::cout << "[selftest-aim] disc=0 raiz doble punto=(" << lead.x() << ","
+                  << lead.y() << "," << lead.z() << ") esperado=(0,90,0) error=" << error
+                  << (ok ? "  OK" : "  FALLO") << "\n";
+        if (!ok) failures += 1;
+    }
+
+    // TTL <= 0 es una bala que no vuela: no debe interpretarse como sin limite.
+    {
+        const osg::Vec3 v(0, 0, 10);
+        const osg::Vec3 leadZero = computeLeadPoint(muzzle, target, v, bullet, 0.0f);
+        const osg::Vec3 leadNeg = computeLeadPoint(muzzle, target, v, bullet, -1.0f);
+        const bool ok = (leadZero - target).length() < 0.01f &&
+                        (leadNeg - target).length() < 0.01f;
+        std::cout << "[selftest-aim] ttl<=0 no vuela adelanto_0=" << (leadZero - target).length()
+                  << " adelanto_neg=" << (leadNeg - target).length()
+                  << (ok ? "  OK" : "  FALLO") << "\n";
+        if (!ok) failures += 1;
+    }
+
+    // Limite exacto: t == maxFlightTime no debe aceptarse. Cruce a 10 m/s da
+    // t = 1.0607 s, asi que un TTL de justo ese valor debe rechazarlo.
+    {
+        const osg::Vec3 v(0, 0, 10);
+        const osg::Vec3 leadFull = computeLeadPoint(muzzle, target, v, bullet, 100.0f);
+        const float tExact = (leadFull - muzzle).length() / bullet;
+        const osg::Vec3 leadAt = computeLeadPoint(muzzle, target, v, bullet, tExact);
+        const osg::Vec3 leadOver = computeLeadPoint(muzzle, target, v, bullet, tExact * 1.01f);
+        const bool ok = (leadAt - target).length() < 0.01f &&
+                        (leadOver - target).length() > 0.01f;
+        std::cout << "[selftest-aim] t == ttl        rechazado=" << ((leadAt - target).length() < 0.01f)
+                  << " t < ttl aceptado=" << ((leadOver - target).length() > 0.01f)
                   << (ok ? "  OK" : "  FALLO") << "\n";
         if (!ok) failures += 1;
     }

@@ -65,7 +65,12 @@ osg::Vec3 computeLeadPoint(const osg::Vec3& muzzle, const osg::Vec3& targetPos,
     // La bala vive un tiempo finito. Un objetivo cruzando casi a su velocidad
     // da una solucion algebraica correcta pero de varios segundos de vuelo: el
     // proyectil se destruye antes y el disparo sale desviadisimo para nada.
-    if (maxFlightTime > 0.0f && t > maxFlightTime) {
+    //
+    // El limite es >= y no >: updateProjectiles marca la bala muerta en cuanto
+    // el TTL llega a cero, y solo despues comprueba impactos, asi que una
+    // intercepcion justo en el limite tampoco llega a ocurrir.
+    // Y un maxFlightTime <= 0 es una bala que no vuela, no "sin limite".
+    if (maxFlightTime <= 0.0f || t >= maxFlightTime) {
         return targetPos;
     }
     return targetPos + targetVel * t;
