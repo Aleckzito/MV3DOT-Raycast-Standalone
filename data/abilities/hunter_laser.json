@@ -7,6 +7,6 @@
   "displayName": "Hunter Laser",
   "abilityClass": "attack",
   "hotbarSlot": 5,
-  "combat": { "damage": 34, "speed": 0.0, "range": 20.0, "duration": 0.10, "energyCost": 1 },
-  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "Tecla 5 hitscan" }
+  "combat": { "damage": 120, "speed": 0.0, "range": 20.0, "duration": 0.10, "energyCost": 1 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "Tecla 5 hitscan. Cuesta 1 celda por disparo, asi que compensa con potencia: 120 mata de un hit a crawler (120 hp) y murcielago (100 hp), que con bala cuestan 3 y 5 disparos. Boss 150 y Arquitecto 220 siguen necesitando dos." }
 }
