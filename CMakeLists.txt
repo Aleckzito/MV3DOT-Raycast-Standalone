@@ -107,76 +107,103 @@ add_subdirectory("${RC_LUAU_ROOT}" "${CMAKE_BINARY_DIR}/luau_thirdparty" EXCLUDE
 set(RC_HAS_LUAU ON)
 
 # 1.1 Target ejecutable standalone. 1.2 Sin ServerNetwork / ClientNetwork / Sockets.
-add_executable(raycast_standalone
-    src/standalone/main_standalone.cpp
-    src/standalone/StandaloneEngine.cpp
-    src/standalone/StandaloneEngine.h
-    src/standalone/LocalContentRegistry.cpp
-    src/standalone/LocalContentRegistry.h
-    src/standalone/LocalScriptHost.cpp
-    src/standalone/LocalScriptHost.h
-    src/standalone/LocalInventory.cpp
-    src/standalone/LocalInventory.h
-    src/standalone/LocalNpc.cpp
-    src/standalone/LocalNpc.h
-    src/standalone/LocalQuestLog.cpp
-    src/standalone/LocalQuestLog.h
-    src/standalone/LocalPhysicsSolver.cpp
-    src/standalone/LocalPhysicsSolver.h
-    src/standalone/MiniVoxelGrid.cpp
-    src/standalone/MiniVoxelGrid.h
-    src/standalone/PhantomCursor.cpp
-    src/standalone/PhantomCursor.h
-    src/standalone/PlayerSave.cpp
-    src/standalone/PlayerSave.h
-    src/standalone/DataRoot.cpp
-    src/standalone/DataRoot.h
-    src/standalone/OsgPhantomRenderer.cpp
-    src/standalone/OsgPhantomRenderer.h
-    src/standalone/OsgDebugFloor.cpp
-    src/standalone/OsgDebugFloor.h
-    src/standalone/LocalChunkMesher.cpp
-    src/standalone/LocalChunkMesher.h
-    src/standalone/StandaloneInputHandler.cpp
-    src/standalone/StandaloneInputHandler.h
-    src/standalone/StandaloneWorldIO.cpp
-    src/standalone/StandaloneWorldIO.h
-    src/standalone/DummyActor.cpp
-    src/standalone/DummyActor.h
-    src/standalone/LocalProjectile.cpp
-    src/standalone/LocalProjectile.h
-    src/standalone/LocalEnemy.cpp
-    src/standalone/LocalEnemy.h
-    src/standalone/OsgHud.cpp
-    src/standalone/OsgHud.h
-    src/standalone/LocalLoot.cpp
-    src/standalone/LocalLoot.h
-    src/standalone/LocalExp.cpp
-    src/standalone/LocalExp.h
-    src/standalone/LocalDebris.cpp
-    src/standalone/LocalDebris.h
-    src/standalone/LocalFloatingText.cpp
-    src/standalone/LocalFloatingText.h
-    src/standalone/LocalBoxWorld.cpp
-    src/standalone/LocalBoxWorld.h
-    src/standalone/LocalBoulder.cpp
-    src/standalone/LocalBoulder.h
-    src/standalone/LocalBuddyController.cpp
-    src/standalone/LocalBuddyController.h
-    src/standalone/LocalArchitect.cpp
-    src/standalone/LocalArchitect.h
-    src/standalone/LocalFlyingBat.cpp
-    src/standalone/LocalFlyingBat.h
-    src/standalone/LocalCrawler.cpp
-    src/standalone/LocalCrawler.h
-    src/standalone/LocalCentipede.cpp
-    src/standalone/LocalCentipede.h
-    src/standalone/LocalCameraRig.cpp
-    src/standalone/LocalCameraRig.h
+
+# Ciclo de vida, input, camara, datos, persistencia, scripting y HUD.
+set(RC_ENGINE_SOURCES
+    src/engine/StandaloneEngine.cpp
+    src/engine/StandaloneEngine.h
+    src/engine/StandaloneInputHandler.cpp
+    src/engine/StandaloneInputHandler.h
+    src/engine/LocalCameraRig.cpp
+    src/engine/LocalCameraRig.h
+    src/engine/DataRoot.cpp
+    src/engine/DataRoot.h
+    src/engine/PlayerSave.cpp
+    src/engine/PlayerSave.h
+    src/engine/LocalContentRegistry.cpp
+    src/engine/LocalContentRegistry.h
+    src/engine/LocalQuestLog.cpp
+    src/engine/LocalQuestLog.h
+    src/engine/LocalScriptHost.cpp
+    src/engine/LocalScriptHost.h
+    src/engine/OsgHud.cpp
+    src/engine/OsgHud.h
 )
 
+# Voxels, malla, fisica, persistencia de mapa y cursor de construccion.
+set(RC_WORLD_SOURCES
+    src/world/LocalBoxWorld.cpp
+    src/world/LocalBoxWorld.h
+    src/world/LocalChunkMesher.cpp
+    src/world/LocalChunkMesher.h
+    src/world/MiniVoxelGrid.cpp
+    src/world/MiniVoxelGrid.h
+    src/world/StandaloneWorldIO.cpp
+    src/world/StandaloneWorldIO.h
+    src/world/LocalPhysicsSolver.cpp
+    src/world/LocalPhysicsSolver.h
+    src/world/LocalBoulder.cpp
+    src/world/LocalBoulder.h
+    src/world/PhantomCursor.cpp
+    src/world/PhantomCursor.h
+    src/world/OsgPhantomRenderer.cpp
+    src/world/OsgPhantomRenderer.h
+    src/world/OsgDebugFloor.cpp
+    src/world/OsgDebugFloor.h
+)
+
+# Actores, IA, proyectiles, drops y efectos ligados a entidades.
+set(RC_ENTITY_SOURCES
+    src/entities/DummyActor.cpp
+    src/entities/DummyActor.h
+    src/entities/LocalBuddyController.cpp
+    src/entities/LocalBuddyController.h
+    src/entities/LocalEnemy.cpp
+    src/entities/LocalEnemy.h
+    src/entities/LocalArchitect.cpp
+    src/entities/LocalArchitect.h
+    src/entities/LocalCentipede.cpp
+    src/entities/LocalCentipede.h
+    src/entities/LocalCrawler.cpp
+    src/entities/LocalCrawler.h
+    src/entities/LocalFlyingBat.cpp
+    src/entities/LocalFlyingBat.h
+    src/entities/LocalFary.cpp
+    src/entities/LocalFary.h
+    src/entities/LocalNpc.cpp
+    src/entities/LocalNpc.h
+    src/entities/LocalProjectile.cpp
+    src/entities/LocalProjectile.h
+    src/entities/LocalLoot.cpp
+    src/entities/LocalLoot.h
+    src/entities/LocalExp.cpp
+    src/entities/LocalExp.h
+    src/entities/LocalInventory.cpp
+    src/entities/LocalInventory.h
+    src/entities/LocalDebris.cpp
+    src/entities/LocalDebris.h
+    src/entities/LocalFloatingText.cpp
+    src/entities/LocalFloatingText.h
+)
+
+add_executable(raycast_standalone
+    src/main_standalone.cpp
+    ${RC_ENGINE_SOURCES}
+    ${RC_WORLD_SOURCES}
+    ${RC_ENTITY_SOURCES}
+)
+
+source_group("engine" FILES ${RC_ENGINE_SOURCES})
+source_group("world" FILES ${RC_WORLD_SOURCES})
+source_group("entities" FILES ${RC_ENTITY_SOURCES})
+
+# Las cuatro carpetas van al include path, asi los #include "X.h" existentes
+# siguen resolviendo sin tocar una sola linea de codigo fuente.
 target_include_directories(raycast_standalone PRIVATE
-    src/standalone
+    src
+    src/engine
+    src/world
+    src/entities
     ${RC_OSG_INCLUDE_DIRS}
     "${RC_OSGVERSE_BUILD}/vcpkg_installed/x64-windows/include"
 )
