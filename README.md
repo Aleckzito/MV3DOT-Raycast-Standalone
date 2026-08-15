@@ -58,8 +58,9 @@ Al arrancar anuncia de dónde lee todo:
 ```
 
 CMake copia `data/` junto al exe, así que puede haber varios árboles en disco, pero la
-raíz se elige una sola vez y vale para contenido, mapas, scripts y partidas: gana el repo
-de verdad (el que tiene `src/`), ejecutes desde donde ejecutes. Detalle en
+raíz se elige una sola vez y vale para contenido, mapas, scripts y partidas. La decide la
+ubicación del ejecutable, no el directorio desde el que lo lanzas: gana el repo de verdad
+(el que tiene `src/`). Detalle en
 [`docs/DATA_LUAU_STANDALONE.md`](docs/DATA_LUAU_STANDALONE.md#raíz-de-datos-una-sola).
 
 ## Datos y partidas

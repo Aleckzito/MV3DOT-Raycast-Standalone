@@ -18,11 +18,12 @@ namespace standalone {
 
 namespace {
 
-// Bases candidatas, en orden: CWD y luego el exe subiendo directorios.
+// Bases candidatas. El ejecutable manda: primero su directorio y los padres,
+// y solo despues el CWD. Si el binario vive en un repo, ese repo gana siempre,
+// aunque lo lances parado en otro clon.
 std::vector<std::filesystem::path> candidateBases()
 {
     std::vector<std::filesystem::path> bases;
-    bases.push_back(std::filesystem::current_path());
 #ifdef _WIN32
     char modulePath[MAX_PATH] = {};
     const DWORD len = GetModuleFileNameA(nullptr, modulePath, MAX_PATH);
@@ -34,34 +35,38 @@ std::vector<std::filesystem::path> candidateBases()
         bases.push_back(exeDir.parent_path().parent_path().parent_path());
     }
 #endif
+    bases.push_back(std::filesystem::current_path());
     return bases;
+}
+
+bool hasCatalog(const std::filesystem::path& base)
+{
+    return std::filesystem::exists(base / "data" / "content" / "registry_catalog.json");
+}
+
+// El repo de verdad trae las fuentes al lado del data/.
+bool hasSources(const std::filesystem::path& base)
+{
+    return std::filesystem::exists(base / "src" / "standalone" / "StandaloneEngine.cpp");
 }
 
 std::string resolveRootOnce()
 {
     const std::vector<std::filesystem::path> bases = candidateBases();
-    std::string copyRoot;
+
+    // 1. Repo completo: catalogo + fuentes. Exe primero, CWD al final.
     for (size_t i = 0; i < bases.size(); ++i) {
-        const std::filesystem::path& base = bases[i];
-        const std::filesystem::path catalog =
-            base / "data" / "content" / "registry_catalog.json";
-        if (!std::filesystem::exists(catalog)) {
-            continue;
-        }
-        // El repo de verdad trae las fuentes al lado del data/.
-        const std::filesystem::path engineSrc =
-            base / "src" / "standalone" / "StandaloneEngine.cpp";
-        if (std::filesystem::exists(engineSrc)) {
-            return base.lexically_normal().generic_string();
-        }
-        if (copyRoot.empty()) {
-            copyRoot = base.lexically_normal().generic_string();
+        if (hasCatalog(bases[i]) && hasSources(bases[i])) {
+            return bases[i].lexically_normal().generic_string();
         }
     }
-    if (!copyRoot.empty()) {
-        return copyRoot;
+    // 2. Distribucion suelta: solo catalogo, mismo orden.
+    for (size_t i = 0; i < bases.size(); ++i) {
+        if (hasCatalog(bases[i])) {
+            return bases[i].lexically_normal().generic_string();
+        }
     }
-    // Sin catalogo en ningun lado: ultimo recurso, el marcador config.json.
+    // 3. Sin catalogo en ningun lado: marcador config.json.
     return rc::findRepoRoot();
 }
 

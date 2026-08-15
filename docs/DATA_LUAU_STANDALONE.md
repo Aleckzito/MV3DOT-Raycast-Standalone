@@ -63,11 +63,16 @@ CMake copia `data/` y `config.json` junto al exe, así que en disco puede haber 
 árboles `data/` válidos a la vez. **Todo** —contenido, mapas, scripts, plantillas y
 partidas— se resuelve contra una única raíz, en `src/standalone/DataRoot.{h,cpp}`:
 
-1. Se recorren CWD, el directorio del exe, y sus tres padres.
-2. Gana la primera base con `data/content/registry_catalog.json` **y** `src/standalone/`:
+**Manda la ubicación del ejecutable, no el CWD.** Las bases se recorren en este orden:
+directorio del exe, sus tres padres, y el CWD **el último**. Sobre esa lista:
+
+1. Gana la primera base con `data/content/registry_catalog.json` **y** `src/standalone/`:
    ese es el repo de verdad.
-3. Si ninguna tiene `src/`, se usa la primera con catálogo (distribución suelta).
-4. Sin catálogo en ningún sitio, último recurso: `findRepoRoot()` (marcador `config.json`).
+2. Si ninguna tiene `src/`, la primera con catálogo (distribución suelta).
+3. Sin catálogo en ningún sitio, último recurso: `findRepoRoot()` (marcador `config.json`).
+
+El CWD va al final a propósito: si lanzas el binario del repo A estando parado en otro
+clon B igual de válido, tiene que seguir usando A. Con el CWD primero, B ganaba.
 
 Se resuelve una vez por proceso y se anuncia al arrancar:
 
@@ -75,8 +80,8 @@ Se resuelve una vez por proceso y se anuncia al arrancar:
 [data] root C:/OTRaycast-MV3D-Engine-Standalone
 ```
 
-**Ese log es el que hay que mirar** cuando algo cargue de donde no esperabas. Ejecutes
-desde la raíz o desde `build/Release`, la raíz debe ser la misma.
+**Ese log es el que hay que mirar** cuando algo cargue de donde no esperabas. Para un
+binario dado la raíz es siempre la misma, ejecutes desde donde ejecutes.
 
 > Antes convivían cuatro mecanismos y se mezclaban: el contenido usaba la raíz con
 > `src/`, mientras las partidas usaban `findRepoRoot()`, que ancla en el CWD. Corriendo
