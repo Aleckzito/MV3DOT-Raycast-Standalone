@@ -996,11 +996,19 @@ void StandaloneEngine::update(float deltaTime)
             dvy = snap.vy - m_lastPhantomVy;
             dvz = snap.vz - m_lastPhantomVz;
         }
-        std::cout << "[phantom] hitX=" << m_phantomProbeX
-                  << " snap=(" << snap.x << ", " << snap.y << ", " << snap.z << ")"
-                  << " idx=(" << snap.vx << ", " << snap.vy << ", " << snap.vz << ")"
-                  << " dv=(" << dvx << ", " << dvy << ", " << dvz << ")"
-                  << "\n";
+        // El log ya solo salia al cambiar de celda, pero la sonda barre sola en
+        // +X y vuelve a empezar, asi que cambiaba de celda continuamente: eran
+        // decenas de lineas por minuto ahogando el resto de la consola.
+        // Queda tras RC_PHANTOM_LOG para cuando se depure el DDA.
+        static const bool phantomLog = (std::getenv("RC_PHANTOM_LOG") != nullptr);
+        if (phantomLog) {
+            std::cout << "[phantom] hitX=" << m_phantomProbeX
+                      << " snap=(" << snap.x << ", " << snap.y << ", " << snap.z << ")"
+                      << " idx=(" << snap.vx << ", " << snap.vy << ", " << snap.vz << ")"
+                      << " dv=(" << dvx << ", " << dvy << ", " << dvz << ")"
+                      << "\n";
+        }
+        // El salto de celda si se avisa siempre: es un fallo del DDA, no ruido.
         if (std::abs(dvx) > 1 || std::abs(dvy) > 1 || std::abs(dvz) > 1) {
             std::cout << "[phantom] WARN skip detected\n";
         }
