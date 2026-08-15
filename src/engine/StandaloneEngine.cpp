@@ -34,6 +34,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <filesystem>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -302,9 +303,19 @@ bool StandaloneEngine::initialize(const std::string& worldJsonPath)
         return false;
     }
 
-    loadContent();
+    // 11. Un mapa pedido por argv manda, y trae su propio meta si existe al lado
+    // como <mapa>.meta.json: asi una arena suelta carga sus spawns sin que haya
+    // que sobrescribir el meta del pack, que esta versionado.
+    // Sin argv se invierte: manda el meta del pack y el define voxelWorld.
+    std::string metaRelative;
+    if (!worldJsonPath.empty()) {
+        const std::string sidecar = worldMetaSidecar(worldJsonPath);
+        if (!sidecar.empty()) {
+            metaRelative = sidecar;
+        }
+    }
+    loadContent(metaRelative);
 
-    // 11. Prioridad de mapa: argv > meta voxelWorld > ruta canonica del pack.
     std::string worldRelative = worldJsonPath;
     if (worldRelative.empty()) {
         worldRelative = m_content.voxelWorldPath();
@@ -1712,9 +1723,29 @@ void StandaloneEngine::spawnDefaultBoulders()
     std::cout << "[arena] 3 HeavyBoulder2x2\n";
 }
 
-void StandaloneEngine::loadContent()
+std::string StandaloneEngine::worldMetaSidecar(const std::string& worldRelative)
 {
-    if (!m_content.loadAll()) {
+    if (worldRelative.empty()) {
+        return std::string();
+    }
+    std::string base = worldRelative;
+    const size_t dot = base.rfind('.');
+    const size_t slash = base.find_last_of("/\\");
+    if (dot != std::string::npos && (slash == std::string::npos || dot > slash)) {
+        base = base.substr(0, dot);
+    }
+    const std::string sidecar = base + ".meta.json";
+    // Solo cuenta si existe de verdad; si no, se cae al meta del pack.
+    const std::string resolved = LocalContentRegistry::resolve(sidecar);
+    if (!std::filesystem::exists(resolved)) {
+        return std::string();
+    }
+    return sidecar;
+}
+
+void StandaloneEngine::loadContent(const std::string& metaRelative)
+{
+    if (!m_content.loadAll(metaRelative)) {
         std::cerr << "[content] WARN defaults C++\n";
     }
     if (!m_scripts.init() || !m_scripts.loadManifest("data/scripts/scripts.json")) {

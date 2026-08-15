@@ -82,7 +82,10 @@ struct NpcSpawn {
 // S2. Catalog + actor/ability JSON. WARN on miss; defaults stay in C++.
 class LocalContentRegistry {
 public:
-    bool loadAll();
+    // metaRelative vacio = meta del pack sandbox. Se pasa explicito cuando el
+    // mapa lo trae al lado (<mapa>.meta.json), para que un mapa suelto cargue
+    // sus propios spawns sin tocar archivos versionados.
+    bool loadAll(const std::string& metaRelative = std::string());
 
     const ContentEntry* byContentId(const std::string& contentId) const;
     ActorStats actor(const std::string& contentId) const;

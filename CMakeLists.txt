@@ -138,6 +138,10 @@ set(RC_WORLD_SOURCES
     src/world/LocalChunkMesher.h
     src/world/MiniVoxelGrid.cpp
     src/world/MiniVoxelGrid.h
+    src/world/VoxelMaterials.cpp
+    src/world/VoxelMaterials.h
+    src/world/TerrainGenerator.cpp
+    src/world/TerrainGenerator.h
     src/world/StandaloneWorldIO.cpp
     src/world/StandaloneWorldIO.h
     src/world/LocalPhysicsSolver.cpp

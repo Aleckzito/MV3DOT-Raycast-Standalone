@@ -3,9 +3,11 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 namespace rc {
 namespace standalone {
@@ -17,19 +19,44 @@ bool saveWorld(const MiniVoxelGrid* grid, const std::string& filepath)
         return false;
     }
 
-    nlohmann::json voxels = nlohmann::json::array();
+    // El grid es un unordered_map: su orden de iteracion depende de la
+    // implementacion de la stdlib. Se ordena por (vx, vy, vz) antes de escribir
+    // para que el archivo sea reproducible entre compiladores y plataformas, no
+    // solo dentro de la misma maquina.
+    struct Row {
+        int vx;
+        int vy;
+        int vz;
+        uint16_t mat;
+    };
+    std::vector<Row> rows;
     const VoxelMap& map = grid->voxels();
-    VoxelMap::const_iterator it = map.begin();
-    while (it != map.end()) {
-        if (it->second.isActive) {
-            nlohmann::json row = nlohmann::json::array();
-            row.push_back(it->first.vx);
-            row.push_back(it->first.vy);
-            row.push_back(it->first.vz);
-            row.push_back(it->second.materialId);
-            voxels.push_back(row);
+    rows.reserve(map.size());
+    for (VoxelMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+        if (!it->second.isActive) {
+            continue;
         }
-        ++it;
+        Row row;
+        row.vx = it->first.vx;
+        row.vy = it->first.vy;
+        row.vz = it->first.vz;
+        row.mat = it->second.materialId;
+        rows.push_back(row);
+    }
+    std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) {
+        if (a.vx != b.vx) return a.vx < b.vx;
+        if (a.vy != b.vy) return a.vy < b.vy;
+        return a.vz < b.vz;
+    });
+
+    nlohmann::json voxels = nlohmann::json::array();
+    for (size_t i = 0; i < rows.size(); ++i) {
+        nlohmann::json row = nlohmann::json::array();
+        row.push_back(rows[i].vx);
+        row.push_back(rows[i].vy);
+        row.push_back(rows[i].vz);
+        row.push_back(rows[i].mat);
+        voxels.push_back(row);
     }
 
     nlohmann::json doc;
