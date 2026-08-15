@@ -251,62 +251,86 @@ int selfTestAim()
     int failures = 0;
     const float bullet = 30.0f;  // gunSpeed tipico
 
+    // Cada caso mide el ERROR DE INTERCEPCION, no solo que el punto se moviera:
+    //   t_bala   = |lead - muzzle| / v_bala
+    //   objetivo = target + v * t_bala
+    //   error    = |lead - objetivo|
+    // Si la solucion es correcta, bala y objetivo llegan al mismo sitio a la
+    // vez y el error es ~0. Comprobar solo el desplazamiento dejaba pasar una
+    // formula equivocada, que es justo lo que ocurria.
     struct Case {
         const char* name;
-        osg::Vec3 muzzle;
-        osg::Vec3 target;
         osg::Vec3 vel;
         float speed;
-        bool expectLead;  // se espera que el punto se desplace
+        bool solvable;      // existe intercepcion real
+        float expectedLead; // adelanto exacto esperado, -1 si no aplica
     };
-    const Case cases[6] = {
-        // Objetivo quieto: el punto no se toca.
-        { "quieto        ", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(0,0,0), bullet, false },
-        // Cruzando en Z a 10 m/s a 30 m: la bala tarda 1 s, adelanto ~10 m.
-        { "cruza en Z    ", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(0,0,10), bullet, true },
-        // Subiendo: el adelanto debe tener componente Y, que es lo que hacia
-        // que los disparos pasaran por debajo de los voladores.
-        { "sube en Y     ", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(0,8,0), bullet, true },
-        // Alejandose en linea: el punto se aleja mas.
-        { "se aleja      ", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(10,0,0), bullet, true },
-        // Mas rapido que la bala: la aproximacion no vale, se deja igual.
-        { "supera la bala", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(0,0,40), bullet, false },
-        // Velocidad de bala invalida: no se toca.
-        { "bala v=0      ", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(0,0,10), 0.0f, false }
-    };
-
-    for (int i = 0; i < 6; ++i) {
-        const Case& c = cases[i];
-        const osg::Vec3 lead = computeLeadPoint(c.muzzle, c.target, c.vel, c.speed);
-        const float shift = (lead - c.target).length();
-        const bool moved = shift > 0.01f;
-        const bool ok = (moved == c.expectLead);
-        if (!ok) failures += 1;
-        std::cout << "[selftest-aim] " << c.name
-                  << " adelanto=" << shift
-                  << " esperado=" << (c.expectLead ? "si" : "no")
-                  << (ok ? "  OK" : "  FALLO") << "\n";
-    }
-
-    // El caso que importa: con el adelanto, el proyectil y el objetivo llegan
-    // al mismo punto a la vez. Sin el, el objetivo ya no esta ahi.
     const osg::Vec3 muzzle(0, 0, 0);
     const osg::Vec3 target(30, 0, 0);
-    const osg::Vec3 vel(0, 0, 10);
-    const osg::Vec3 lead = computeLeadPoint(muzzle, target, vel, bullet);
-    const float tBullet = (lead - muzzle).length() / bullet;
-    const osg::Vec3 targetAtT = target + vel * tBullet;
-    const float missDistance = (lead - targetAtT).length();
 
-    const osg::Vec3 naiveDir = target - muzzle;
-    const float tNaive = naiveDir.length() / bullet;
-    const float naiveMiss = (target - (target + vel * tNaive)).length();
+    const Case cases[8] = {
+        { "quieto           ", osg::Vec3(0, 0, 0),    bullet, false, 0.0f },
+        // Cierre 20 m/s sobre 30 m => t=1.5 => adelanto 15.
+        { "se aleja 10      ", osg::Vec3(10, 0, 0),   bullet, true,  15.0f },
+        // Acercandose: la bala y el objetivo se aproximan, t es corto.
+        { "se acerca 25     ", osg::Vec3(-25, 0, 0),  bullet, true,  -1.0f },
+        // Mas rapido que la bala pero DE FRENTE: sigue siendo resoluble.
+        { "se acerca 40     ", osg::Vec3(-40, 0, 0),  bullet, true,  -1.0f },
+        { "cruza en Z 10    ", osg::Vec3(0, 0, 10),   bullet, true,  -1.0f },
+        // Cruce cerca del limite de la bala.
+        { "cruza en Z 29    ", osg::Vec3(0, 0, 29),   bullet, true,  -1.0f },
+        { "sube en Y 8      ", osg::Vec3(0, 8, 0),    bullet, true,  -1.0f },
+        // Huye mas rapido que la bala: sin raiz positiva.
+        { "huye 40 (sin raiz)", osg::Vec3(40, 0, 0),  bullet, false, 0.0f }
+    };
 
-    const bool okIntercept = missDistance < 0.35f && missDistance < naiveMiss;
-    std::cout << "[selftest-aim] intercepcion: error_con_lead=" << missDistance
-              << " error_sin_lead=" << naiveMiss
-              << (okIntercept ? "  OK" : "  FALLO") << "\n";
-    if (!okIntercept) failures += 1;
+    for (int i = 0; i < 8; ++i) {
+        const Case& c = cases[i];
+        const osg::Vec3 lead = computeLeadPoint(muzzle, target, c.vel, c.speed);
+        const float tBullet = (lead - muzzle).length() / c.speed;
+        const osg::Vec3 targetAtT = target + c.vel * tBullet;
+        const float error = (lead - targetAtT).length();
+        const float shift = (lead - target).length();
+
+        bool ok = false;
+        if (c.solvable) {
+            // Con solucion: el error debe ser practicamente cero.
+            ok = error < 0.01f;
+            if (c.expectedLead >= 0.0f) {
+                ok = ok && std::fabs(shift - c.expectedLead) < 0.01f;
+            }
+        } else {
+            // Sin solucion: se apunta a la posicion actual, sin adelanto.
+            ok = shift < 0.01f;
+        }
+        if (!ok) failures += 1;
+
+        std::cout << "[selftest-aim] " << c.name
+                  << " adelanto=" << shift
+                  << " error=" << (c.solvable ? error : 0.0f);
+        if (c.expectedLead >= 0.0f) {
+            std::cout << " (exacto " << c.expectedLead << ")";
+        }
+        if (!c.solvable) {
+            std::cout << " sin-solucion";
+        }
+        std::cout << (ok ? "  OK" : "  FALLO") << "\n";
+    }
+
+    // Bala con velocidad invalida: no debe dividir por cero ni mover el punto.
+    const osg::Vec3 leadBad = computeLeadPoint(muzzle, target, osg::Vec3(0, 0, 10), 0.0f);
+    const bool okBad = (leadBad - target).length() < 0.01f;
+    std::cout << "[selftest-aim] bala v=0           "
+              << " adelanto=" << (leadBad - target).length()
+              << (okBad ? "  OK" : "  FALLO") << "\n";
+    if (!okBad) failures += 1;
+
+    // Comparativa: cuanto se erraba antes de adelantar.
+    const osg::Vec3 crossVel(0, 0, 10);
+    const float tNaive = (target - muzzle).length() / bullet;
+    const float naiveMiss = (crossVel * tNaive).length();
+    std::cout << "[selftest-aim] sin adelantar, un objetivo a 10 m/s se escapa "
+              << naiveMiss << " m\n";
 
     std::cout << "[selftest-aim] " << (failures == 0 ? "TODO OK" : "FALLOS") << "\n";
     return failures == 0 ? 0 : 1;

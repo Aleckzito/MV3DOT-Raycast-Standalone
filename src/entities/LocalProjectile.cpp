@@ -20,27 +20,48 @@ osg::Vec3 computeLeadPoint(const osg::Vec3& muzzle, const osg::Vec3& targetPos,
     if (bulletSpeed <= 0.0001f) {
         return targetPos;
     }
-    const float targetSpeed = targetVel.length();
-    if (targetSpeed <= 0.0001f) {
+    const osg::Vec3 d = targetPos - muzzle;
+    if (targetVel.length2() <= 1.0e-8f) {
         return targetPos;  // objetivo quieto: no hay nada que adelantar
     }
-    // Por encima de esta fraccion la aproximacion de primer orden diverge y
-    // apuntaria muy por delante del objetivo.
-    if (targetSpeed > bulletSpeed * 0.85f) {
-        return targetPos;
+
+    // Solucion exacta de |D + v*t| = s*t, que es
+    //   (|v|^2 - s^2) t^2 + 2 (D . v) t + |D|^2 = 0
+    // La iteracion de primer orden que habia aqui no converge: con un objetivo
+    // alejandose a 10 m/s daba 13.33 m de adelanto donde el exacto son 15.
+    const float a = targetVel.length2() - bulletSpeed * bulletSpeed;
+    const float b = 2.0f * (d * targetVel);
+    const float c = d.length2();
+
+    float t = -1.0f;
+    if (std::fabs(a) < 1.0e-5f) {
+        // El objetivo va justo a la velocidad de la bala: queda lineal.
+        if (std::fabs(b) > 1.0e-5f) {
+            t = -c / b;
+        }
+    } else {
+        const float disc = b * b - 4.0f * a * c;
+        if (disc >= 0.0f) {
+            const float sq = std::sqrt(disc);
+            const float t1 = (-b + sq) / (2.0f * a);
+            const float t2 = (-b - sq) / (2.0f * a);
+            // La primera intercepcion posible.
+            if (t1 > 0.0f && t2 > 0.0f) {
+                t = (t1 < t2) ? t1 : t2;
+            } else if (t1 > 0.0f) {
+                t = t1;
+            } else if (t2 > 0.0f) {
+                t = t2;
+            }
+        }
     }
 
-    const float dist = (targetPos - muzzle).length();
-    if (dist < 0.0001f) {
+    // Sin raiz positiva no hay intercepcion posible: el objetivo huye mas
+    // rapido de lo que la bala puede alcanzarlo. Se apunta a donde esta.
+    if (t <= 0.0f) {
         return targetPos;
     }
-
-    osg::Vec3 lead = targetPos + targetVel * (dist / bulletSpeed);
-    const float dist2 = (lead - muzzle).length();
-    if (dist2 > 0.0001f) {
-        lead = targetPos + targetVel * (dist2 / bulletSpeed);
-    }
-    return lead;
+    return targetPos + targetVel * t;
 }
 
 } // namespace standalone
