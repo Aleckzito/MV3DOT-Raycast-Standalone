@@ -24,6 +24,9 @@ namespace {
 
 const int kArenaMax = 23;
 const float kLayerDt = 0.08f;
+const int kArchitectMaxHp = 220;
+// Media caja de la entidad, para que los disparos la puedan tocar.
+const float kArchitectHalf = 0.42f;
 const float kFleeRange = 1.25f * TILE_SIZE;
 const float kSafeRange = 4.00f * TILE_SIZE;
 const float kSiteClear = 2.80f * TILE_SIZE;
@@ -56,6 +59,10 @@ LocalArchitect::LocalArchitect()
     , m_rng(77u)
     , m_builtPos(0.0f, 0.0f, 0.0f)
     , m_builtReady(false)
+    , m_alive(false)
+    , m_hp(0)
+    , m_maxHp(kArchitectMaxHp)
+    , m_buildInterval(kLayerDt)
 {
     m_job.active = false;
     m_job.kind = ARCH_BP_TOWER;
@@ -169,6 +176,69 @@ void LocalArchitect::syncVisual()
         m_flashLight->setLocalStateSetModes(
             (m_flashTtl > 0.0f) ? osg::StateAttribute::ON : osg::StateAttribute::OFF);
     }
+}
+
+void LocalArchitect::spawnAt(const osg::Vec3& pos)
+{
+    // Se reutiliza la misma instancia: se reinicia el estado y se reposiciona.
+    m_pos = pos;
+    m_alive = true;
+    m_hp = m_maxHp;
+    m_state = ARCH_SCANNING;
+    m_resume = ARCH_SCANNING;
+    m_job.active = false;
+    m_job.layer = 0;
+    m_job.cells.clear();
+    m_layerTtl = 0.0f;
+    m_scanTtl = 0.0f;
+    m_coolTtl = 2.50f;
+    m_flashTtl = 0.0f;
+    m_builtReady = false;
+    m_debris.clear();
+    if (m_node.valid()) {
+        m_node->setNodeMask(~0u);
+    }
+    syncVisual();
+}
+
+void LocalArchitect::despawn()
+{
+    m_alive = false;
+    m_hp = 0;
+    m_job.active = false;
+    m_job.cells.clear();
+    m_builtReady = false;
+    if (m_node.valid()) {
+        // Se oculta en vez de sacarlo del grafo: el holder es estable.
+        m_node->setNodeMask(0u);
+    }
+}
+
+bool LocalArchitect::takeDamage(int amount)
+{
+    if (!m_alive || amount <= 0) {
+        return false;
+    }
+    m_hp -= amount;
+    triggerFlash();
+    if (m_hp > 0) {
+        return false;
+    }
+    m_hp = 0;
+    despawn();
+    return true;
+}
+
+AABB LocalArchitect::makeAabb() const
+{
+    AABB box;
+    box.minX = m_pos.x() - kArchitectHalf;
+    box.minY = m_pos.y() - kArchitectHalf;
+    box.minZ = m_pos.z() - kArchitectHalf;
+    box.maxX = m_pos.x() + kArchitectHalf;
+    box.maxY = m_pos.y() + kArchitectHalf;
+    box.maxZ = m_pos.z() + kArchitectHalf;
+    return box;
 }
 
 void LocalArchitect::takeDebris(std::vector<osg::Vec3>& out)
@@ -552,7 +622,7 @@ void LocalArchitect::finishJob(LocalBoulderWorld& boulders, MiniVoxelGrid& grid)
 void LocalArchitect::update(float dt, const osg::Vec3& playerPos, MiniVoxelGrid& grid,
                             LocalChunkMesher& mesher, LocalBoulderWorld& boulders)
 {
-    if (dt <= 0.0f) {
+    if (dt <= 0.0f || !m_alive) {
         return;
     }
     m_time += dt;
@@ -644,7 +714,10 @@ void LocalArchitect::update(float dt, const osg::Vec3& playerPos, MiniVoxelGrid&
         flyToward(goal, kFlySpeed * 0.45f, dt);
         m_layerTtl -= dt;
         if (m_layerTtl <= 0.0f) {
-            m_layerTtl = kLayerDt;
+            // Cada capa dispara un rebuild completo del mesher. En la arena de
+            // 120x120 eso son ~30k voxels por rebuild, asi que el ritmo lo fija
+            // el motor y no una constante de 0.08 s.
+            m_layerTtl = m_buildInterval;
             placeLayer(grid, mesher);
             if (m_job.layer >= m_job.sizeY) {
                 finishJob(boulders, grid);
