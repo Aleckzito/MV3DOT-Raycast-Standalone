@@ -15,7 +15,8 @@ namespace rc {
 namespace standalone {
 
 osg::Vec3 computeLeadPoint(const osg::Vec3& muzzle, const osg::Vec3& targetPos,
-                           const osg::Vec3& targetVel, float bulletSpeed)
+                           const osg::Vec3& targetVel, float bulletSpeed,
+                           float maxFlightTime)
 {
     if (bulletSpeed <= 0.0001f) {
         return targetPos;
@@ -59,6 +60,12 @@ osg::Vec3 computeLeadPoint(const osg::Vec3& muzzle, const osg::Vec3& targetPos,
     // Sin raiz positiva no hay intercepcion posible: el objetivo huye mas
     // rapido de lo que la bala puede alcanzarlo. Se apunta a donde esta.
     if (t <= 0.0f) {
+        return targetPos;
+    }
+    // La bala vive un tiempo finito. Un objetivo cruzando casi a su velocidad
+    // da una solucion algebraica correcta pero de varios segundos de vuelo: el
+    // proyectil se destruye antes y el disparo sale desviadisimo para nada.
+    if (maxFlightTime > 0.0f && t > maxFlightTime) {
         return targetPos;
     }
     return targetPos + targetVel * t;

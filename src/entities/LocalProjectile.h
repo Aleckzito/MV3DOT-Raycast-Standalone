@@ -9,19 +9,25 @@
 namespace rc {
 namespace standalone {
 
-// 123. Intercepcion de primer orden para proyectiles balisticos.
+// Vida del proyectil del gun, en segundos. Una intercepcion que exija mas
+// tiempo de vuelo que esto es un disparo imposible: la bala se destruye antes
+// de llegar. Se define aqui para que la balistica y el disparo no puedan
+// desincronizarse.
+const float GUN_PROJECTILE_TTL = 2.00f;
+
+// 123. Punto de intercepcion para proyectiles balisticos.
 //
 // Vive fuera del motor a proposito: asi la cinematica se puede verificar con
 // numeros conocidos, sin ventana ni estado de juego.
 //
-//   t = |D| / v_bala        y luego   P_lead = P_obj + v_obj * t
-//
-// Se hace una segunda iteracion porque al adelantar el punto cambia la
-// distancia, y con una basta para quitar casi todo el error en cruces.
-// Si el objetivo se acerca a la velocidad de la bala la aproximacion deja de
-// valer, y entonces se devuelve la posicion actual en vez de un disparate.
+// Resuelve la forma cerrada de |D + v t| = s t y toma la primera raiz positiva.
+// Devuelve la posicion actual del objetivo cuando no hay intercepcion util:
+// objetivo quieto, velocidad de bala invalida, sin raiz positiva (huye mas
+// rapido de lo que la bala lo alcanza), o t por encima de maxFlightTime, que es
+// una solucion matematica fuera del alcance real del arma.
 osg::Vec3 computeLeadPoint(const osg::Vec3& muzzle, const osg::Vec3& targetPos,
-                           const osg::Vec3& targetVel, float bulletSpeed);
+                           const osg::Vec3& targetVel, float bulletSpeed,
+                           float maxFlightTime = GUN_PROJECTILE_TTL);
 
 // 21 / 92. Proyectil local: aliado naranja o flecha hostil verde.
 class LocalProjectile {

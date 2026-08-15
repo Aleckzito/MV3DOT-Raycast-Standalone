@@ -528,6 +528,7 @@ void StandaloneEngine::update(float deltaTime)
             continue;
         }
         const float oldX = enemy.pos.x();
+        const float oldY = enemy.pos.y();
         const float oldZ = enemy.pos.z();
         if (enemy.isArcher()) {
             const osg::Vec3 from = enemy.muzzle();
@@ -551,8 +552,11 @@ void StandaloneEngine::update(float deltaTime)
         }
         m_localPhysics.updateEnemyPhysics(enemy, oldX, oldZ, deltaTime, &dummyAabb);
         // 123. Despues de la fisica: el desplazamiento real, no el intentado.
+        // Incluye Y porque updateEnemyPhysics tambien mueve en vertical (saltos
+        // y caidas), y un enemigo en el aire se adelantaria mal sin ese eje.
         if (deltaTime > 0.0f) {
-            enemy.setVelocity(osg::Vec3((enemy.pos.x() - oldX) / deltaTime, 0.0f,
+            enemy.setVelocity(osg::Vec3((enemy.pos.x() - oldX) / deltaTime,
+                                        (enemy.pos.y() - oldY) / deltaTime,
                                         (enemy.pos.z() - oldZ) / deltaTime));
         }
         enemy.setTargeted(static_cast<int>(e) == m_lockedEnemyIndex);
@@ -4571,7 +4575,7 @@ void StandaloneEngine::fireProjectile()
             vel = dir * (m_content.gunSpeed() / len);
         }
     }
-    LocalProjectile shot(pos, vel, 2.00f);
+    LocalProjectile shot(pos, vel, GUN_PROJECTILE_TTL);
     if (m_projectileRoot.valid() && shot.getNode() != nullptr) {
         m_projectileRoot->addChild(shot.getNode());
     }

@@ -277,8 +277,9 @@ int selfTestAim()
         // Mas rapido que la bala pero DE FRENTE: sigue siendo resoluble.
         { "se acerca 40     ", osg::Vec3(-40, 0, 0),  bullet, true,  -1.0f },
         { "cruza en Z 10    ", osg::Vec3(0, 0, 10),   bullet, true,  -1.0f },
-        // Cruce cerca del limite de la bala.
-        { "cruza en Z 29    ", osg::Vec3(0, 0, 29),   bullet, true,  -1.0f },
+        // Cruce cerca del limite de la bala: la cuadratica da t=3.9 s, pero el
+        // proyectil solo vive 2 s. Solucion matematica fuera de alcance real.
+        { "cruza en Z 29    ", osg::Vec3(0, 0, 29),   bullet, false, 0.0f },
         { "sube en Y 8      ", osg::Vec3(0, 8, 0),    bullet, true,  -1.0f },
         // Huye mas rapido que la bala: sin raiz positiva.
         { "huye 40 (sin raiz)", osg::Vec3(40, 0, 0),  bullet, false, 0.0f }
@@ -315,6 +316,63 @@ int selfTestAim()
             std::cout << " sin-solucion";
         }
         std::cout << (ok ? "  OK" : "  FALLO") << "\n";
+    }
+
+    // El TTL debe ser el que decide, no un umbral inventado: el mismo cruce a
+    // 29 m/s si se acepta cuando el proyectil vive lo suficiente.
+    {
+        const osg::Vec3 fast(0, 0, 29);
+        const osg::Vec3 conTtl = computeLeadPoint(muzzle, target, fast, bullet,
+                                                  GUN_PROJECTILE_TTL);
+        const osg::Vec3 sinTtl = computeLeadPoint(muzzle, target, fast, bullet, 10.0f);
+        const float shiftCorto = (conTtl - target).length();
+        const float shiftLargo = (sinTtl - target).length();
+        const bool ok = shiftCorto < 0.01f && shiftLargo > 100.0f;
+        std::cout << "[selftest-aim] TTL decide      "
+                  << " ttl=" << GUN_PROJECTILE_TTL << "s -> adelanto=" << shiftCorto
+                  << " | ttl=10s -> adelanto=" << shiftLargo
+                  << (ok ? "  OK" : "  FALLO") << "\n";
+        if (!ok) failures += 1;
+    }
+
+    // Degenerado a ~= 0 con b != 0: el objetivo viene de frente justo a la
+    // velocidad de la bala. La cuadratica se anula y queda la forma lineal;
+    // se cruzan a mitad de camino, t = 0.5 s y adelanto 15 m.
+    {
+        const osg::Vec3 head_on(-bullet, 0, 0);
+        const osg::Vec3 lead = computeLeadPoint(muzzle, target, head_on, bullet, 100.0f);
+        const float tB = (lead - muzzle).length() / bullet;
+        const float error = (lead - (target + head_on * tB)).length();
+        const float shift = (lead - target).length();
+        const bool ok = error < 0.05f && std::fabs(shift - 15.0f) < 0.05f;
+        std::cout << "[selftest-aim] a~=0 lineal     adelanto=" << shift
+                  << " error=" << error << " (exacto 15)"
+                  << (ok ? "  OK" : "  FALLO") << "\n";
+        if (!ok) failures += 1;
+    }
+
+    // Degenerado a ~= 0 con b == 0: cruce perpendicular a la velocidad de la
+    // bala. No existe intercepcion: |D + v t| = s t se reduce a |D|^2 = 0.
+    {
+        const osg::Vec3 perp(0, 0, bullet);
+        const osg::Vec3 lead = computeLeadPoint(muzzle, target, perp, bullet, 100.0f);
+        const bool ok = (lead - target).length() < 0.01f;
+        std::cout << "[selftest-aim] a~=0 b=0        adelanto="
+                  << (lead - target).length() << " sin-solucion"
+                  << (ok ? "  OK" : "  FALLO") << "\n";
+        if (!ok) failures += 1;
+    }
+
+    // Discriminante cero: raiz doble. Objetivo huyendo justo a la velocidad de
+    // la bala en linea recta, que nunca es alcanzado pero tampoco diverge.
+    {
+        const osg::Vec3 away(bullet, 0, 0);
+        const osg::Vec3 lead = computeLeadPoint(muzzle, target, away, bullet, 100.0f);
+        const bool ok = (lead - target).length() < 0.01f;
+        std::cout << "[selftest-aim] disc=0 (huye=bala) adelanto="
+                  << (lead - target).length() << " sin-solucion"
+                  << (ok ? "  OK" : "  FALLO") << "\n";
+        if (!ok) failures += 1;
     }
 
     // Bala con velocidad invalida: no debe dividir por cero ni mover el punto.
