@@ -43,7 +43,7 @@ Fuente BASE (solo lectura, no duplicar audits): `docs/plan/master_compendium.md`
 - `rookgaard_test.json` no se carga aquí.
 
 Prioridad de ruta del mapa: `argv[1]` > `voxelWorld` del meta > `data/worlds/standalone_sandbox.json`.
-Se resuelve con `findDataFile` (repo root / exe dir / CWD), nunca relativa cruda.
+Se resuelve contra la raíz única (ver más abajo), nunca relativa cruda.
 
 Las rocas (`HeavyBoulder2x2`) vacían su celda, así que siempre se colocan **después** del mapa.
 
@@ -55,10 +55,41 @@ Las rocas (`HeavyBoulder2x2`) vacían su celda, así que siempre se colocan **de
 Verificación en consola: `[world-io] loaded N voxels <- <ruta absoluta>` seguido de `[world] mapa <- ...`.
 Si sale `[arena] 4 cover pillars (default C++)`, el JSON no se leyó.
 
-> Rutas: `LocalContentRegistry::resolve` prefiere el directorio que tiene
-> `src/standalone/StandaloneEngine.cpp` **y** `data/content/registry_catalog.json`.
-> Así el exe de `build/Release` lee el `data/` de la raíz, no la copia de CMake.
-> Si solo existe la carpeta del exe (sin `src/`), usa esa copia.
+---
+
+## Raíz de datos (una sola)
+
+CMake copia `data/` y `config.json` junto al exe, así que en disco puede haber varios
+árboles `data/` válidos a la vez. **Todo** —contenido, mapas, scripts, plantillas y
+partidas— se resuelve contra una única raíz, en `src/standalone/DataRoot.{h,cpp}`:
+
+**Manda la ubicación del ejecutable, no el CWD.** Las bases se recorren en este orden:
+directorio del exe, sus tres padres, y el CWD **el último**. Sobre esa lista:
+
+1. Gana la primera base con `data/content/registry_catalog.json` **y** `src/standalone/`:
+   ese es el repo de verdad.
+2. Si ninguna tiene `src/`, la primera con catálogo (distribución suelta).
+3. Sin catálogo en ningún sitio, último recurso: `findRepoRoot()` (marcador `config.json`).
+
+El CWD va al final a propósito: si lanzas el binario del repo A estando parado en otro
+clon B igual de válido, tiene que seguir usando A. Con el CWD primero, B ganaba.
+
+Se resuelve una vez por proceso y se anuncia al arrancar:
+
+```
+[data] root C:/OTRaycast-MV3D-Engine-Standalone
+```
+
+**Ese log es el que hay que mirar** cuando algo cargue de donde no esperabas. Para un
+binario dado la raíz es siempre la misma, ejecutes desde donde ejecutes.
+
+> Antes convivían cuatro mecanismos y se mezclaban: el contenido usaba la raíz con
+> `src/`, mientras las partidas usaban `findRepoRoot()`, que ancla en el CWD. Corriendo
+> desde `build/Release` el mapa salía del repo pero la partida se escribía junto al exe.
+> `dataRoot()` es ahora el único punto de decisión; nadie más llama a `findDataFile`.
+
+El POST_BUILD tampoco copia `data/player/save` junto al exe, para no recrear un segundo
+árbol de partidas.
 
 ---
 
