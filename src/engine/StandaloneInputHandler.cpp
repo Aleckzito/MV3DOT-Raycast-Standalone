@@ -426,6 +426,14 @@ bool StandaloneInputHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GUI
     return false;
 }
 
+void StandaloneInputHandler::resetPointerReference()
+{
+    m_hasMouse = false;
+    m_scrollStrafeFrames = 0;
+    m_pointerForwardFrames = 0;
+    m_pointerTurnFrames = 0;
+}
+
 void StandaloneInputHandler::clearKeys()
 {
     m_keyUp = false;

@@ -5367,6 +5367,14 @@ void StandaloneEngine::setMouseCaptured(bool captured)
                       << (diag.bottom - diag.top) << "\n";
         }
         refreshMouseClip();
+        // El puntero puede llevar rato parado en una esquina. Sin olvidar la
+        // referencia anterior, el primer MOVE tras capturar comparara la esquina
+        // con el centro y ese salto se leeria como un giro o un avance que nadie
+        // ha pedido. Con la referencia limpia, el primer evento solo la fija.
+        if (m_inputHandler.valid()) {
+            m_inputHandler->resetPointerReference();
+        }
+        centerPointer();
         // ShowCursor lleva un contador interno, no un booleano.
         while (ShowCursor(FALSE) >= 0) {
         }

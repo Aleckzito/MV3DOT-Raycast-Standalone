@@ -27,6 +27,9 @@ public:
     // 126. Suelta todas las teclas. Al cambiar de ventana no llega el KEYUP y
     // la tecla se queda pegada: el jugador seguia andando solo.
     void clearKeys();
+    // 126. Olvida la ultima posicion del puntero sin tocar las teclas. Se usa al
+    // capturar: el cursor puede venir de cualquier parte de la pantalla.
+    void resetPointerReference();
 
     // 17.2 / 50. forward: W/UP=+1 S/DOWN=-1. strafe: D=+1 A=-1. turn: LEFT=+1 RIGHT=-1 (desinvertido).
     void getMoveAxes(float& forward, float& strafe, float& turn) const;
