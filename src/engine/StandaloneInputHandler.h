@@ -24,6 +24,9 @@ public:
               StandaloneEngine* engine);
 
     bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa) override;
+    // 126. Suelta todas las teclas. Al cambiar de ventana no llega el KEYUP y
+    // la tecla se queda pegada: el jugador seguia andando solo.
+    void clearKeys();
 
     // 17.2 / 50. forward: W/UP=+1 S/DOWN=-1. strafe: D=+1 A=-1. turn: LEFT=+1 RIGHT=-1 (desinvertido).
     void getMoveAxes(float& forward, float& strafe, float& turn) const;
@@ -40,6 +43,17 @@ private:
     void saveSandbox();
     void loadSandbox();
     std::string worldPath() const;
+    void toggleAtCursor();
+
+    // 124. Strafe pendiente de la rueda. getMoveAxes es const y lo consume,
+    // por eso el contador es mutable.
+    mutable int m_scrollStrafeFrames = 0;
+    float m_scrollStrafeDir = 0.0f;
+    // 124.2 Ejes pendientes del movimiento del puntero, mismo mecanismo.
+    mutable int m_pointerForwardFrames = 0;
+    float m_pointerForwardDir = 0.0f;
+    mutable int m_pointerTurnFrames = 0;
+    float m_pointerTurnDir = 0.0f;
     void tossDummy();
 
     MiniVoxelGrid* m_grid;
@@ -62,6 +76,7 @@ private:
     bool m_key1;
     bool m_shiftHeld;
     bool m_jumpLatched;
+    bool m_rightControlDown;
     bool m_invertMove;
     bool m_arrowOrbit;
     float m_lastMouseX;

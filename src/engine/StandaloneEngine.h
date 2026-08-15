@@ -69,6 +69,17 @@ public:
     bool shouldQuit() const { return m_quit; }
     void requestQuit() { m_quit = true; }
 
+    // 125. Captura del raton al estilo VirtualBox: el puntero se oculta y se
+    // recentra, para que una bola pueda rodar sin tope. Ctrl derecho libera.
+    void setMouseCaptured(bool captured);
+    bool isMouseCaptured() const { return m_mouseCaptured; }
+    bool hasInputFocus() const;
+    // Devuelve el puntero al centro de la ventana. Con una bola, el puntero
+    // llegaria al borde y dejaria de generar movimiento.
+    void centerPointer();
+    // Renueva el confinamiento: Windows lo suelta por su cuenta.
+    void refreshMouseClip();
+
     // 11. Ruta efectiva del mapa de voxeles (resuelta en initialize).
     const std::string& worldJsonPath() const { return m_worldJsonPath; }
     bool reloadWorldJson();
@@ -227,6 +238,10 @@ private:
     LocalBoxWorld m_boxWorld;
     LocalBoulderWorld m_boulderWorld;
     LocalArchitect m_architect;
+    bool m_mouseCaptured = false;
+    void* m_capturedWindow = nullptr;  // HWND de la ventana al capturar
+    void* m_gameWindow = nullptr;      // HWND del juego, cacheado
+    bool m_hadFocus = false;
     float m_architectTimer;
     unsigned int m_architectSeed;
     bool m_lockedArchitect;

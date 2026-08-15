@@ -32,6 +32,14 @@
 #include <osgGA/GUIEventHandler>
 #include <osgViewer/GraphicsWindow>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <osgViewer/api/Win32/GraphicsWindowWin32>
+#endif
+
 #include <cmath>
 #include <cstddef>
 #include <filesystem>
@@ -420,6 +428,14 @@ bool StandaloneEngine::initialize(const std::string& worldJsonPath)
         std::cerr << "[standalone] OSG realize failed\n";
         return false;
     }
+#ifdef _WIN32
+    // El backend Win32 expone el HWND exacto. Evita buscar por titulo y
+    // confundir esta ventana con otra instancia del juego.
+    if (osgViewer::GraphicsWindowWin32* win32 =
+            dynamic_cast<osgViewer::GraphicsWindowWin32*>(m_graphicsContext.get())) {
+        m_gameWindow = win32->getHWND();
+    }
+#endif
     m_initialized = true;
     m_quit = false;
     m_cameraInitialized = false;
@@ -499,6 +515,34 @@ void StandaloneEngine::update(float deltaTime)
     if (!m_initialized) {
         return;
     }
+
+#ifdef _WIN32
+    // 126. Sin foco, el juego no debe moverse. Al cambiar de ventana no llega
+    // el KEYUP y la tecla se queda pegada: se soltaban todas al perder foco.
+    {
+        HWND gameWindow = static_cast<HWND>(m_gameWindow);
+        const bool focused = gameWindow != nullptr && IsWindow(gameWindow) &&
+                             GetForegroundWindow() == gameWindow;
+        if (!focused) {
+            // Se limpia en cada frame, no solo en la transicion: un KEYDOWN
+            // rezagado no puede volver a dejar movimiento pegado.
+            if (m_inputHandler.valid()) {
+                m_inputHandler->clearKeys();
+            }
+            if (m_hadFocus) {
+                std::cout << "[input] ventana sin foco: teclas liberadas\n";
+            }
+            if (m_mouseCaptured) {
+                setMouseCaptured(false);
+            }
+        }
+        m_hadFocus = focused;
+    }
+#endif
+
+    // Windows puede soltar ClipCursor al cambiar el modo de ventana. Solo se
+    // renueva despues de confirmar que esta ventana sigue en primer plano.
+    refreshMouseClip();
 
     if (m_inputHandler.valid()) {
         m_inputHandler->setInvertMove(m_camRig.invertMove());
@@ -1189,6 +1233,11 @@ void StandaloneEngine::cycleEntityLockOn()
         int id;
         int sub;
         float score;
+        // 108.2 Prioridad por encima del score. El Arquitecto vuela lejos y el
+        // score divide por distancia, asi que competia contra enemigos a dos
+        // metros y quedaba al final de la cola: habia que pulsar TAB media
+        // docena de veces para engancharlo. Es un objetivo de evento, va antes.
+        int priority;
     };
     std::vector<Item> items;
     const int nEn = static_cast<int>(m_enemies.size());
@@ -1221,6 +1270,7 @@ void StandaloneEngine::cycleEntityLockOn()
         it.id = i;
         it.sub = 0;
         it.score = kindW * (0.25f + 0.75f * (facing + 1.0f) * 0.5f) / (0.40f + dist);
+        it.priority = 0;
         items.push_back(it);
     }
     // 102.5 El Arquitecto es objetivo prioritario del TAB mientras dure el evento.
@@ -1242,6 +1292,7 @@ void StandaloneEngine::cycleEntityLockOn()
             it.id = 0;
             it.sub = 0;
             it.score = 1.60f * (0.25f + 0.75f * (facing + 1.0f) * 0.5f) / (0.40f + dist);
+            it.priority = 1;
             items.push_back(it);
         }
     }
@@ -1273,6 +1324,7 @@ void StandaloneEngine::cycleEntityLockOn()
         it.id = i;
         it.sub = 0;
         it.score = kindW * (0.25f + 0.75f * (facing + 1.0f) * 0.5f) / (0.40f + dist);
+        it.priority = 0;
         items.push_back(it);
     }
     const int nCrawl = static_cast<int>(m_crawlers.size());
@@ -1299,6 +1351,7 @@ void StandaloneEngine::cycleEntityLockOn()
         it.id = i;
         it.sub = 0;
         it.score = 1.10f * (0.25f + 0.75f * (facing + 1.0f) * 0.5f) / (0.40f + dist);
+        it.priority = 0;
         items.push_back(it);
     }
     const int nCent = static_cast<int>(m_centipedes.size());
@@ -1331,12 +1384,19 @@ void StandaloneEngine::cycleEntityLockOn()
             it.id = w;
             it.sub = s;
             it.score = 1.70f * tailW * (0.20f + 0.80f * (facing + 1.0f) * 0.5f) / (0.35f + dist);
+            it.priority = 0;
             items.push_back(it);
         }
     }
     for (size_t a = 0; a < items.size(); ++a) {
         size_t best = a;
         for (size_t b = a + 1; b < items.size(); ++b) {
+            if (items[b].priority != items[best].priority) {
+                if (items[b].priority > items[best].priority) {
+                    best = b;
+                }
+                continue;
+            }
             if (items[b].score > items[best].score) {
                 best = b;
             }
@@ -5279,6 +5339,116 @@ void StandaloneEngine::render()
     m_viewer->frame();
 }
 
+void StandaloneEngine::setMouseCaptured(bool captured)
+{
+    // useCursor() de OSG no basta: el puntero sigue siendo la flecha del
+    // sistema y puede salirse de la ventana. Se hace como las ventanas
+    // virtuales, con la API de Windows: confinar y ocultar de verdad.
+#ifdef _WIN32
+    if (captured) {
+        HWND hwnd = static_cast<HWND>(m_gameWindow);
+        if (hwnd == nullptr || !IsWindow(hwnd) || GetForegroundWindow() != hwnd) {
+            return;
+        }
+        m_mouseCaptured = true;
+        m_capturedWindow = hwnd;
+        {
+            // Diagnostico: si el rectangulo no es el de la ventana del juego,
+            // el confinamiento se estaria aplicando al sitio equivocado.
+            RECT diag = {};
+            GetClientRect(hwnd, &diag);
+            POINT tl = { diag.left, diag.top };
+            ClientToScreen(hwnd, &tl);
+            char title[128] = {};
+            GetWindowTextA(hwnd, title, sizeof(title) - 1);
+            std::cout << "[mouse] ventana=\"" << title << "\""
+                      << " origen=(" << tl.x << "," << tl.y << ")"
+                      << " tam=" << (diag.right - diag.left) << "x"
+                      << (diag.bottom - diag.top) << "\n";
+        }
+        refreshMouseClip();
+        // ShowCursor lleva un contador interno, no un booleano.
+        while (ShowCursor(FALSE) >= 0) {
+        }
+    } else {
+        m_mouseCaptured = false;
+        ClipCursor(nullptr);
+        ReleaseCapture();
+        m_capturedWindow = nullptr;
+        while (ShowCursor(TRUE) < 0) {
+        }
+    }
+#else
+    m_mouseCaptured = captured;
+#endif
+    std::cout << "[mouse] " << (captured ? "capturado (Ctrl derecho libera)"
+                                         : "liberado (Ctrl derecho captura)")
+              << "\n";
+    m_questAlertText = captured ? "[ RATON CAPTURADO - CTRL DERECHO LIBERA ]"
+                                : "[ RATON LIBERADO ]";
+    m_questAlertTtl = 2.50f;
+}
+
+bool StandaloneEngine::hasInputFocus() const
+{
+#ifdef _WIN32
+    HWND hwnd = static_cast<HWND>(m_gameWindow);
+    return hwnd != nullptr && IsWindow(hwnd) && GetForegroundWindow() == hwnd;
+#else
+    return true;
+#endif
+}
+
+void StandaloneEngine::centerPointer()
+{
+#ifdef _WIN32
+    if (!m_mouseCaptured) {
+        return;
+    }
+    HWND hwnd = static_cast<HWND>(m_capturedWindow);
+    if (hwnd == nullptr) {
+        return;
+    }
+    RECT client;
+    GetClientRect(hwnd, &client);
+    POINT center = { (client.right - client.left) / 2,
+                     (client.bottom - client.top) / 2 };
+    ClientToScreen(hwnd, &center);
+    SetCursorPos(center.x, center.y);
+#endif
+}
+
+void StandaloneEngine::refreshMouseClip()
+{
+#ifdef _WIN32
+    if (!m_mouseCaptured || !hasInputFocus()) {
+        return;
+    }
+    HWND hwnd = static_cast<HWND>(m_capturedWindow);
+    if (hwnd == nullptr) {
+        return;
+    }
+    // Windows suelta el clip por su cuenta: al cambiar el foco, al pasar por
+    // otra ventana o al cambiar de modo de pantalla. Aplicarlo una sola vez al
+    // capturar no sirve; hay que renovarlo cada frame.
+    RECT client;
+    GetClientRect(hwnd, &client);
+    POINT topLeft = { client.left, client.top };
+    POINT bottomRight = { client.right, client.bottom };
+    ClientToScreen(hwnd, &topLeft);
+    ClientToScreen(hwnd, &bottomRight);
+    RECT clip = { topLeft.x, topLeft.y, bottomRight.x, bottomRight.y };
+    ClipCursor(&clip);
+
+    // Aunque el cursor logre salirse, SetCapture manda todos los eventos de
+    // raton a esta ventana. Asi los clics no pueden caer en otra aplicacion, ni
+    // en el boton rojo de cerrar.
+    if (GetCapture() != hwnd) {
+        SetCapture(hwnd);
+    }
+#endif
+}
+
 void StandaloneEngine::setEditorMode(bool active)
 {
     if (m_editorMode == active) {
@@ -5310,6 +5480,9 @@ void StandaloneEngine::setEditorMode(bool active)
 
 void StandaloneEngine::shutdown()
 {
+    if (m_mouseCaptured) {
+        setMouseCaptured(false);
+    }
     m_inventory.save(playerSavePath("data/player/sandbox_inventory.json"));
     m_quests.save();
     if (m_viewer.valid()) {
