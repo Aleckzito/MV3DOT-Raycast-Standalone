@@ -4617,6 +4617,14 @@ void StandaloneEngine::fireHunterLaser()
 
 void StandaloneEngine::applyHunterDamageLocked(const osg::Vec3& muzzle)
 {
+    // 122.1 El Arquitecto va primero: es el objetivo del evento de caza y
+    // lockedTargetCenter ya apunta a el cuando esta fijado.
+    if (m_lockedArchitect && m_architect.isAlive()) {
+        damageArchitect(m_content.hunterDamage());
+        std::cout << "[hunter] architect -" << m_content.hunterDamage()
+                  << " HP=" << m_architect.hp() << "\n";
+        return;
+    }
     if (m_lockedEnemyIndex >= 0 &&
         m_lockedEnemyIndex < static_cast<int>(m_enemies.size()) &&
         m_enemies[static_cast<size_t>(m_lockedEnemyIndex)].isAlive) {
@@ -4753,6 +4761,20 @@ bool StandaloneEngine::applyHunterFrontal(const osg::Vec3& muzzle, const osg::Ve
         }
     }
 
+    // 122.1 El Arquitecto tambien entra en el barrido: sin esto el hitscan solo
+    // perforaba voxels y lo atravesaba sin tocarlo.
+    if (m_architect.isAlive() &&
+        segmentHitsAabb(muzzle, end, m_architect.makeAabb())) {
+        const osg::Vec3 p = m_architect.position();
+        const float t = (p - muzzle).length();
+        if (t < bestT) {
+            bestT = t;
+            bestPos = p;
+            kind = 5;
+            id = 0;
+        }
+    }
+
     if (outHit != nullptr) {
         *outHit = bestPos;
     }
@@ -4792,6 +4814,10 @@ bool StandaloneEngine::applyHunterFrontal(const osg::Vec3& muzzle, const osg::Ve
         if (!cr.isAlive()) {
             onCrawlerKilled(cr, id);
         }
+    } else if (kind == 5) {
+        damageArchitect(m_content.hunterDamage());
+        spawnDebris(bestPos, ARCHITECT_COLOR);
+        std::cout << "[hunter] architect -" << m_content.hunterDamage() << "\n";
     } else if (kind == 4) {
         applyCentipedeDamage(id, sub, m_content.hunterDamage());
     }
@@ -4800,6 +4826,11 @@ bool StandaloneEngine::applyHunterFrontal(const osg::Vec3& muzzle, const osg::Ve
 
 bool StandaloneEngine::hasCombatLock() const
 {
+    // 122.1 Sin esto, con el Arquitecto fijado el laser caia siempre a la ruta
+    // frontal y el lock-on no servia de nada contra el.
+    if (m_lockedArchitect && m_architect.isAlive()) {
+        return true;
+    }
     if (m_lockedEnemyIndex >= 0 &&
         m_lockedEnemyIndex < static_cast<int>(m_enemies.size()) &&
         m_enemies[static_cast<size_t>(m_lockedEnemyIndex)].isAlive) {
