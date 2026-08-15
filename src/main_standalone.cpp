@@ -211,6 +211,22 @@ int selfTestChunks()
               << (okAgua ? "  OK" : "  FALLO") << "\n";
     if (!okAgua) failures += 1;
 
+    // B4. Cambiar el material de un voxel en X-Ray: debe seguir oculto y la
+    //     visual translucida tiene que reflejar el material nuevo.
+    grid.setVoxel(26, 3, 12, MAT_STONE);
+    mesher.rebuildMesh();
+    mesher.setXRay(26, 3, 12, true);
+    grid.setVoxel(26, 3, 12, MAT_BRICK);
+    mesher.rebuildMesh();
+    const bool okMat = mesher.slotHidden(26, 3, 12) && mesher.isXRay(26, 3, 12) &&
+                       mesher.xrayMaterial(26, 3, 12) == MAT_BRICK;
+    std::cout << "[selftest] X-Ray cambia material: oculto=" << mesher.slotHidden(26, 3, 12)
+              << " xray=" << mesher.isXRay(26, 3, 12)
+              << " material=" << mesher.xrayMaterial(26, 3, 12)
+              << " (esperado " << static_cast<int>(MAT_BRICK) << ")"
+              << (okMat ? "  OK" : "  FALLO") << "\n";
+    if (!okMat) failures += 1;
+
     // D. Vaciar un chunk debe retirarlo: si no, se acumulan Geodes vacios.
     const size_t chunksConAislado = mesher.chunkCount();
     grid.setVoxel(-17, 0, -17, 0);

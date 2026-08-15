@@ -98,6 +98,8 @@ public:
     bool hasSlot(int vx, int vy, int vz) const;
     bool slotHidden(int vx, int vy, int vz) const;
     bool isXRay(int vx, int vy, int vz) const;
+    // Material con el que se construyo la visual X-Ray. 0 si no esta en X-Ray.
+    uint16_t xrayMaterial(int vx, int vy, int vz) const;
 
 private:
     // Rango de vertices de un voxel dentro de la geometria de su chunk.
@@ -127,6 +129,9 @@ private:
         osg::ref_ptr<osg::ShapeDrawable> drawable;
         osg::Vec4 baseColor;
         osg::Vec4 baseAmbient;
+        // Material con el que se construyo: si el voxel cambia de material hay
+        // que rehacer la visual, o mostraria el color antiguo.
+        uint16_t materialId = 0;
     };
 
     static ChunkCoord chunkOf(int vx, int vy, int vz);

@@ -366,8 +366,19 @@ void LocalChunkMesher::rebuildChunk(const ChunkCoord& coord)
             removeXRayVoxel(key);
             continue;
         }
-        // Sigue siendo solido: el remallado lo dejo visible, hay que volver a
-        // colapsarlo o se dibuja dos veces, opaco y translucido.
+
+        // Cambio de material solido: la visual se construyo con el color del
+        // anterior, asi que hay que rehacerla.
+        const MiniVoxel voxel = m_grid->getVoxel(key.vx, key.vy, key.vz);
+        const std::unordered_map<VoxelKey, XRayVisual, VoxelKeyHash>::const_iterator vis =
+            m_xray.find(key);
+        if (vis != m_xray.end() && vis->second.materialId != voxel.materialId) {
+            removeXRayVoxel(key);
+            addXRayVoxel(key);
+        }
+
+        // El remallado lo dejo visible: hay que volver a colapsarlo o se dibuja
+        // dos veces, opaco y translucido.
         hideInBatch(key);
     }
 
@@ -476,6 +487,7 @@ void LocalChunkMesher::addXRayVoxel(const VoxelKey& key)
     XRayVisual vis;
     vis.baseColor = colorOf(voxel.materialId);
     vis.baseAmbient = ambientOf(voxel.materialId);
+    vis.materialId = voxel.materialId;
 
     osg::Vec4 col = vis.baseColor;
     col.a() = kXRayAlpha;
@@ -588,6 +600,17 @@ bool LocalChunkMesher::isXRay(int vx, int vy, int vz) const
     key.vy = vy;
     key.vz = vz;
     return m_xray.find(key) != m_xray.end();
+}
+
+uint16_t LocalChunkMesher::xrayMaterial(int vx, int vy, int vz) const
+{
+    VoxelKey key;
+    key.vx = vx;
+    key.vy = vy;
+    key.vz = vz;
+    const std::unordered_map<VoxelKey, XRayVisual, VoxelKeyHash>::const_iterator it =
+        m_xray.find(key);
+    return it == m_xray.end() ? 0 : it->second.materialId;
 }
 
 osg::Node* LocalChunkMesher::getNode()
