@@ -64,7 +64,7 @@ private:
     const MiniVoxelGrid* m_grid;
     osg::ref_ptr<osg::Group> m_holder;
 
-    // Lote estatico.
+    // Lote estatico opaco. Es el unico con slots: el X-Ray solo aplica a solidos.
     osg::ref_ptr<osg::Geode> m_batchGeode;
     osg::ref_ptr<osg::Geometry> m_batchGeometry;
     osg::ref_ptr<osg::Vec3Array> m_vertices;
@@ -72,6 +72,13 @@ private:
     osg::ref_ptr<osg::Vec4Array> m_colors;
     std::vector<osg::Vec3> m_baseVertices;  // copia para restaurar tras X-Ray
     std::unordered_map<VoxelKey, BatchSlot, VoxelKeyHash> m_slots;
+
+    // Lote de liquidos: translucido, sin X-Ray, en el bin transparente.
+    osg::ref_ptr<osg::Geode> m_liquidGeode;
+    osg::ref_ptr<osg::Geometry> m_liquidGeometry;
+    osg::ref_ptr<osg::Vec3Array> m_liquidVertices;
+    osg::ref_ptr<osg::Vec3Array> m_liquidNormals;
+    osg::ref_ptr<osg::Vec4Array> m_liquidColors;
 
     // Voxels actualmente en X-Ray, fuera del lote.
     std::unordered_map<VoxelKey, XRayVisual, VoxelKeyHash> m_xray;

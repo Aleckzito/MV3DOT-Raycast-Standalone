@@ -1,5 +1,7 @@
 #include "LocalChunkMesher.h"
 
+#include "VoxelMaterials.h"
+
 #include <osg/BlendFunc>
 #include <osg/Depth>
 #include <osg/GL>
@@ -16,25 +18,16 @@ namespace standalone {
 
 namespace {
 
-const osg::Vec4 kVoxelOpaque(0.72f, 0.74f, 0.78f, 1.0f);
-const osg::Vec4 kVoxelBrick(0.78f, 0.22f, 0.10f, 1.0f);
-const osg::Vec4 kAmbientOpaque(0.28f, 0.30f, 0.32f, 1.0f);
-const osg::Vec4 kAmbientBrick(0.32f, 0.08f, 0.04f, 1.0f);
 const float kXRayAlpha = 0.35f;
-
-bool isBrick(uint16_t materialId)
-{
-    return materialId >= 2;
-}
 
 osg::Vec4 colorOf(uint16_t materialId)
 {
-    return isBrick(materialId) ? kVoxelBrick : kVoxelOpaque;
+    return materialColor(materialId);
 }
 
 osg::Vec4 ambientOf(uint16_t materialId)
 {
-    return isBrick(materialId) ? kAmbientBrick : kAmbientOpaque;
+    return materialAmbient(materialId);
 }
 
 // Las 6 caras: normal y los 4 vertices en orden antihorario visto desde fuera,
@@ -110,6 +103,9 @@ void LocalChunkMesher::buildBatch()
     m_vertices = new osg::Vec3Array;
     m_normals = new osg::Vec3Array;
     m_colors = new osg::Vec4Array;
+    m_liquidVertices = new osg::Vec3Array;
+    m_liquidNormals = new osg::Vec3Array;
+    m_liquidColors = new osg::Vec4Array;
     m_baseVertices.clear();
 
     const VoxelMap& map = m_grid->voxels();
@@ -119,33 +115,41 @@ void LocalChunkMesher::buildBatch()
             continue;
         }
         const VoxelKey& key = it->first;
-        const osg::Vec4 col = colorOf(it->second.materialId);
+        const uint16_t mat = it->second.materialId;
+        const bool liquid = materialIsLiquid(mat);
+        const osg::Vec4 col = colorOf(mat);
+
+        osg::Vec3Array* verts = liquid ? m_liquidVertices.get() : m_vertices.get();
+        osg::Vec3Array* norms = liquid ? m_liquidNormals.get() : m_normals.get();
+        osg::Vec4Array* cols = liquid ? m_liquidColors.get() : m_colors.get();
 
         BatchSlot slot;
-        slot.first = m_vertices->size();
+        slot.first = verts->size();
         slot.count = 0;
 
         for (int f = 0; f < 6; ++f) {
             const Face& face = kFaces[f];
-            // Cara interna entre dos voxels activos: no se emite.
             const MiniVoxel neighbor =
                 m_grid->getVoxel(key.vx + face.dx, key.vy + face.dy, key.vz + face.dz);
-            if (neighbor.isActive) {
+            // Cara interna entre dos voxels activos: no se emite. Un solido
+            // junto a agua si dibuja su cara, para que el cauce se vea.
+            if (neighbor.isActive && materialIsLiquid(neighbor.materialId) == liquid) {
                 continue;
             }
             for (int c = 0; c < 4; ++c) {
                 const osg::Vec3 local = face.corner[c];
-                m_vertices->push_back(osg::Vec3(
+                verts->push_back(osg::Vec3(
                     (static_cast<float>(key.vx) + local.x()) * MINI_VOXEL_SIZE,
                     (static_cast<float>(key.vy) + local.y()) * MINI_VOXEL_SIZE,
                     (static_cast<float>(key.vz) + local.z()) * MINI_VOXEL_SIZE));
-                m_normals->push_back(face.normal);
-                m_colors->push_back(col);
+                norms->push_back(face.normal);
+                cols->push_back(col);
             }
             slot.count += 4;
         }
 
-        if (slot.count > 0) {
+        // Solo los solidos entran en slots: el X-Ray no se aplica a liquidos.
+        if (slot.count > 0 && !liquid) {
             m_slots[key] = slot;
         }
     }
@@ -179,13 +183,53 @@ void LocalChunkMesher::buildBatch()
 
     m_holder->addChild(m_batchGeode.get());
 
+    // Lote de liquidos, solo si el mapa tiene agua.
+    size_t liquidFaces = 0;
+    if (!m_liquidVertices->empty()) {
+        liquidFaces = m_liquidVertices->size() / 4;
+
+        m_liquidGeometry = new osg::Geometry;
+        m_liquidGeometry->setVertexArray(m_liquidVertices.get());
+        m_liquidGeometry->setNormalArray(m_liquidNormals.get(), osg::Array::BIND_PER_VERTEX);
+        m_liquidGeometry->setColorArray(m_liquidColors.get(), osg::Array::BIND_PER_VERTEX);
+        m_liquidGeometry->addPrimitiveSet(
+            new osg::DrawArrays(GL_QUADS, 0, static_cast<int>(m_liquidVertices->size())));
+        m_liquidGeometry->setUseVertexBufferObjects(true);
+
+        m_liquidGeode = new osg::Geode;
+        m_liquidGeode->addDrawable(m_liquidGeometry.get());
+
+        osg::ref_ptr<osg::Material> liquidMat = new osg::Material;
+        liquidMat->setColorMode(osg::Material::AMBIENT_AND_DIFFUSE);
+        liquidMat->setSpecular(osg::Material::FRONT_AND_BACK,
+                               osg::Vec4(0.20f, 0.24f, 0.26f, 1.0f));
+        liquidMat->setShininess(osg::Material::FRONT_AND_BACK, 24.0f);
+
+        osg::StateSet* liquidState = m_liquidGeode->getOrCreateStateSet();
+        liquidState->setAttributeAndModes(liquidMat.get(), osg::StateAttribute::ON);
+        liquidState->setMode(GL_LIGHTING, osg::StateAttribute::ON);
+        liquidState->setMode(GL_BLEND, osg::StateAttribute::ON);
+        liquidState->setAttributeAndModes(
+            new osg::BlendFunc(osg::BlendFunc::SRC_ALPHA, osg::BlendFunc::ONE_MINUS_SRC_ALPHA),
+            osg::StateAttribute::ON);
+        liquidState->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+        // Sin escritura de profundidad: el agua no debe tapar lo que hay detras.
+        liquidState->setAttributeAndModes(
+            new osg::Depth(osg::Depth::LEQUAL, 0.0, 1.0, false), osg::StateAttribute::ON);
+
+        m_holder->addChild(m_liquidGeode.get());
+    }
+
     // Caras internas descartadas: util para ver de un vistazo cuanto ahorra el
     // culling en un mapa dado (6 caras por voxel seria el peor caso).
     const size_t faces = m_vertices->size() / 4;
     std::cout << "[mesh] voxels=" << m_slots.size()
               << " caras=" << faces
-              << " (de " << (m_slots.size() * 6) << " sin culling)"
-              << " drawables=1\n";
+              << " (de " << (m_slots.size() * 6) << " sin culling)";
+    if (liquidFaces > 0) {
+        std::cout << " liquido=" << liquidFaces;
+    }
+    std::cout << " drawables=" << m_holder->getNumChildren() << "\n";
 }
 
 void LocalChunkMesher::hideInBatch(const VoxelKey& key)
