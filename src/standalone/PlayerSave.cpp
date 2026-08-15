@@ -1,6 +1,6 @@
 #include "PlayerSave.h"
 
-#include "data_paths.h"
+#include "DataRoot.h"
 
 #include <filesystem>
 
@@ -18,10 +18,8 @@ std::string fileNameOf(const std::string& relative)
 
 std::string playerSavePath(const std::string& templateRelative)
 {
-    const std::string root = rc::findRepoRoot();
-    const std::filesystem::path base =
-        std::filesystem::path(root.empty() ? "." : root) / "data" / "player" / "save";
-    return (base / fileNameOf(templateRelative)).lexically_normal().generic_string();
+    // Misma raiz que el contenido: partida y plantilla nunca salen de arboles distintos.
+    return dataPath("data/player/save/" + fileNameOf(templateRelative));
 }
 
 std::string playerLoadPath(const std::string& templateRelative)
@@ -30,7 +28,7 @@ std::string playerLoadPath(const std::string& templateRelative)
     if (!save.empty() && std::filesystem::exists(save)) {
         return save;
     }
-    return rc::findDataFile(templateRelative);
+    return dataPath(templateRelative);
 }
 
 } // namespace standalone

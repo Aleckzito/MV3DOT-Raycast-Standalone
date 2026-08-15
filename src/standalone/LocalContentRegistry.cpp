@@ -1,6 +1,6 @@
 #include "LocalContentRegistry.h"
 
-#include "data_paths.h"
+#include "DataRoot.h"
 
 #include <nlohmann/json.hpp>
 
@@ -8,14 +8,6 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include <vector>
-
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#endif
 
 namespace rc {
 namespace standalone {
@@ -47,41 +39,6 @@ nlohmann::json parseFile(const std::string& path)
     }
 }
 
-std::string standaloneRoot()
-{
-    std::vector<std::filesystem::path> bases;
-    bases.push_back(std::filesystem::current_path());
-#ifdef _WIN32
-    char modulePath[MAX_PATH] = {};
-    const DWORD len = GetModuleFileNameA(nullptr, modulePath, MAX_PATH);
-    if (len > 0 && len < MAX_PATH) {
-        std::filesystem::path exeDir = std::filesystem::path(modulePath).parent_path();
-        bases.push_back(exeDir);
-        bases.push_back(exeDir.parent_path());
-        bases.push_back(exeDir.parent_path().parent_path());
-        bases.push_back(exeDir.parent_path().parent_path().parent_path());
-    }
-#endif
-    std::string copyRoot;
-    for (size_t i = 0; i < bases.size(); ++i) {
-        const std::filesystem::path& base = bases[i];
-        const std::filesystem::path catalog =
-            base / "data" / "content" / "registry_catalog.json";
-        if (!std::filesystem::exists(catalog)) {
-            continue;
-        }
-        const std::filesystem::path engineSrc =
-            base / "src" / "standalone" / "StandaloneEngine.cpp";
-        if (std::filesystem::exists(engineSrc)) {
-            return base.lexically_normal().generic_string();
-        }
-        if (copyRoot.empty()) {
-            copyRoot = base.lexically_normal().generic_string();
-        }
-    }
-    return copyRoot;
-}
-
 } // namespace
 
 std::string LocalContentRegistry::resolve(const std::string& relative)
@@ -90,20 +47,10 @@ std::string LocalContentRegistry::resolve(const std::string& relative)
     if (rel.is_absolute() && std::filesystem::exists(rel)) {
         return rel.lexically_normal().generic_string();
     }
-    const std::string root = standaloneRoot();
-    if (!root.empty()) {
-        const std::filesystem::path p = std::filesystem::path(root) / relative;
-        if (std::filesystem::exists(p)) {
-            return p.lexically_normal().generic_string();
-        }
-    }
-    const std::string found = findDataFile(relative);
-    if (!found.empty() && std::filesystem::exists(found)) {
-        return found;
-    }
-    const std::filesystem::path cwd = std::filesystem::current_path() / relative;
-    if (std::filesystem::exists(cwd)) {
-        return cwd.lexically_normal().generic_string();
+    // Raiz unica: la misma que usan mapas, plantillas y partidas.
+    const std::string p = dataPath(relative);
+    if (std::filesystem::exists(p)) {
+        return p;
     }
     return relative;
 }

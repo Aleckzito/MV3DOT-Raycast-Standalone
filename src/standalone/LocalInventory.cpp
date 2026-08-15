@@ -1,6 +1,6 @@
 #include "LocalInventory.h"
 
-#include "data_paths.h"
+#include "DataRoot.h"
 
 #include <nlohmann/json.hpp>
 
@@ -14,7 +14,8 @@ namespace standalone {
 bool LocalInventory::load(const std::string& relativePath)
 {
     m_stacks.clear();
-    const std::string path = findDataFile(relativePath);
+    // Ya viene resuelta por playerLoadPath/playerSavePath; no re-resolver.
+    const std::string path = dataPath(relativePath);
     std::ifstream in(path, std::ios::binary);
     if (!in) {
         return false;
@@ -58,7 +59,8 @@ bool LocalInventory::save(const std::string& relativePath) const
     doc["schema"] = "otraycast.player.inventory.v1";
     doc["version"] = 1;
     doc["slots"] = slots;
-    const std::string path = findDataFile(relativePath);
+    // Ya viene resuelta por playerLoadPath/playerSavePath; no re-resolver.
+    const std::string path = dataPath(relativePath);
     std::filesystem::path outPath(path.empty() ? relativePath : path);
     if (outPath.has_parent_path()) {
         std::filesystem::create_directories(outPath.parent_path());

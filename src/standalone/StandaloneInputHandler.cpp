@@ -7,9 +7,8 @@
 #include "StandaloneEngine.h"
 #include "StandaloneWorldIO.h"
 
-#include "data_paths.h"
+#include "DataRoot.h"
 
-#include <filesystem>
 #include <iostream>
 
 namespace rc {
@@ -333,11 +332,7 @@ std::string StandaloneInputHandler::worldPath() const
     if (m_engine != nullptr && !m_engine->worldJsonPath().empty()) {
         return m_engine->worldJsonPath();
     }
-    const std::string repoRoot = rc::findRepoRoot();
-    if (repoRoot.empty()) {
-        return m_worldPath;
-    }
-    return (std::filesystem::path(repoRoot) / m_worldPath).lexically_normal().generic_string();
+    return dataPath(m_worldPath);
 }
 
 void StandaloneInputHandler::saveSandbox()

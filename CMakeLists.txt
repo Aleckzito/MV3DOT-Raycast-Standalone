@@ -129,6 +129,8 @@ add_executable(raycast_standalone
     src/standalone/PhantomCursor.h
     src/standalone/PlayerSave.cpp
     src/standalone/PlayerSave.h
+    src/standalone/DataRoot.cpp
+    src/standalone/DataRoot.h
     src/standalone/OsgPhantomRenderer.cpp
     src/standalone/OsgPhantomRenderer.h
     src/standalone/OsgDebugFloor.cpp
@@ -208,6 +210,10 @@ add_custom_command(TARGET raycast_standalone POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/data"
         "$<TARGET_FILE_DIR:raycast_standalone>/data"
+    # Las partidas locales no se copian: duplicarlas junto al exe crea un
+    # segundo arbol de estado y reabre la ambiguedad de raiz que evita DataRoot.
+    COMMAND ${CMAKE_COMMAND} -E remove_directory
+        "$<TARGET_FILE_DIR:raycast_standalone>/data/player/save"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/config.json"
         "$<TARGET_FILE_DIR:raycast_standalone>/config.json"

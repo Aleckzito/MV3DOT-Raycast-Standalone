@@ -1,6 +1,6 @@
 #include "LocalScriptHost.h"
 
-#include "data_paths.h"
+#include "DataRoot.h"
 
 #include <nlohmann/json.hpp>
 
@@ -35,7 +35,8 @@ std::string readScript(const std::string& path)
 
 std::string resolveScript(const std::string& relative)
 {
-    const std::string found = findDataFile(relative);
+    // Misma raiz que el contenido: los .luau no pueden venir de otro arbol data/.
+    const std::string found = dataPath(relative);
     return found.empty() ? relative : found;
 }
 

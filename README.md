@@ -51,10 +51,16 @@ meta del pack, y en último término `data/worlds/standalone_sandbox.json`.
 Teclas: `1` salto, `2` gun, `3` melee, `4` bomba, `5` láser, `C` cámara, `F2` editor,
 `F5` guardar mapa, `F9` recargarlo en caliente.
 
-> **Ojo con el CWD.** CMake copia `data/` y `config.json` junto al exe, y `findRepoRoot`
-> ancla en el primer `config.json` que encuentra (CWD primero). Si ejecutas
-> `build/Release/raycast_standalone.exe` con ese CWD, lees *esa copia*, no `data/` de la
-> raíz. Ejecuta el exe de la raíz, o recompila para resincronizar.
+Al arrancar anuncia de dónde lee todo:
+
+```
+[data] root C:/OTRaycast-MV3D-Engine-Standalone
+```
+
+CMake copia `data/` junto al exe, así que puede haber varios árboles en disco, pero la
+raíz se elige una sola vez y vale para contenido, mapas, scripts y partidas: gana el repo
+de verdad (el que tiene `src/`), ejecutes desde donde ejecutes. Detalle en
+[`docs/DATA_LUAU_STANDALONE.md`](docs/DATA_LUAU_STANDALONE.md#raíz-de-datos-una-sola).
 
 ## Datos y partidas
 
