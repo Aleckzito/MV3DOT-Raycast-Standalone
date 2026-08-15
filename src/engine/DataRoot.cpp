@@ -44,10 +44,13 @@ bool hasCatalog(const std::filesystem::path& base)
     return std::filesystem::exists(base / "data" / "content" / "registry_catalog.json");
 }
 
-// El repo de verdad trae las fuentes al lado del data/.
+// El repo de verdad trae las fuentes y el build system al lado del data/.
+// Se comprueban CMakeLists.txt y el directorio src/, no un .cpp concreto:
+// reorganizar src/ no debe hacer que el repo deje de reconocerse a si mismo.
 bool hasSources(const std::filesystem::path& base)
 {
-    return std::filesystem::exists(base / "src" / "standalone" / "StandaloneEngine.cpp");
+    return std::filesystem::exists(base / "CMakeLists.txt") &&
+           std::filesystem::is_directory(base / "src");
 }
 
 std::string resolveRootOnce()

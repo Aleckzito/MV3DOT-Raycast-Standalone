@@ -12,7 +12,7 @@ namespace standalone {
 // varios arboles data/ validos a la vez. La regla es una sola y **no depende del
 // CWD**: manda la ubicacion del ejecutable.
 //
-//   1. Repo completo (data/content/registry_catalog.json + src/standalone),
+//   1. Repo completo (data/content/registry_catalog.json + CMakeLists.txt + src/),
 //      buscando desde el directorio del exe hacia arriba; el CWD va el ultimo.
 //   2. Distribucion suelta: solo catalogo, en ese mismo orden.
 //   3. Sin catalogo: findRepoRoot() (marcador config.json).

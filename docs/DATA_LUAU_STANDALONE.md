@@ -66,8 +66,8 @@ partidas— se resuelve contra una única raíz, en `src/standalone/DataRoot.{h,
 **Manda la ubicación del ejecutable, no el CWD.** Las bases se recorren en este orden:
 directorio del exe, sus tres padres, y el CWD **el último**. Sobre esa lista:
 
-1. Gana la primera base con `data/content/registry_catalog.json` **y** `src/standalone/`:
-   ese es el repo de verdad.
+1. Gana la primera base con `data/content/registry_catalog.json`, `CMakeLists.txt` y el
+   directorio `src/`: ese es el repo de verdad.
 2. Si ninguna tiene `src/`, la primera con catálogo (distribución suelta).
 3. Sin catálogo en ningún sitio, último recurso: `findRepoRoot()` (marcador `config.json`).
 
