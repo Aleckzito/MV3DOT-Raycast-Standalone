@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <unordered_map>
+#include <vector>
 
 namespace rc {
 namespace standalone {
@@ -49,6 +50,15 @@ public:
     MiniVoxel getVoxel(int vx, int vy, int vz) const;
     void clear();
 
+    // Rastreo de cambios para el remallado parcial. Se lleva aqui, en setVoxel,
+    // y no en cada punto de llamada: hay una decena de sitios que tocan el grid
+    // (construir, destruir, bombas, colapsos, rocas, Arquitecto) y cualquiera
+    // que se olvidara de marcar dejaria un agujero en la malla.
+    const std::vector<VoxelKey>& dirtyVoxels() const { return m_dirty; }
+    // clear() invalida el mapa entero: el mesher debe rehacerlo todo.
+    bool dirtyAll() const { return m_dirtyAll; }
+    void clearDirty();
+
     // 9.3 Iteracion del mesher sobre celdas activas.
     const VoxelMap& voxels() const { return m_voxels; }
 
@@ -62,6 +72,8 @@ public:
 
 private:
     VoxelMap m_voxels;
+    std::vector<VoxelKey> m_dirty;
+    bool m_dirtyAll = true;
 };
 
 } // namespace standalone

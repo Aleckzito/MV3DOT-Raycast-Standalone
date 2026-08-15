@@ -16,14 +16,29 @@ void MiniVoxelGrid::setVoxel(int vx, int vy, int vz, uint16_t matId)
     key.vz = vz;
 
     if (matId == 0) {
-        m_voxels.erase(key);
+        if (m_voxels.erase(key) != 0) {
+            m_dirty.push_back(key);
+        }
         return;
+    }
+
+    const VoxelMap::const_iterator prev = m_voxels.find(key);
+    if (prev != m_voxels.end() && prev->second.materialId == matId &&
+        prev->second.isActive) {
+        return;  // sin cambio real: no ensucia
     }
 
     MiniVoxel voxel;
     voxel.materialId = matId;
     voxel.isActive = true;
     m_voxels[key] = voxel;
+    m_dirty.push_back(key);
+}
+
+void MiniVoxelGrid::clearDirty()
+{
+    m_dirty.clear();
+    m_dirtyAll = false;
 }
 
 MiniVoxel MiniVoxelGrid::getVoxel(int vx, int vy, int vz) const
@@ -46,6 +61,8 @@ MiniVoxel MiniVoxelGrid::getVoxel(int vx, int vy, int vz) const
 void MiniVoxelGrid::clear()
 {
     m_voxels.clear();
+    m_dirty.clear();
+    m_dirtyAll = true;
 }
 
 bool MiniVoxelGrid::computeBounds(int* minX, int* minY, int* minZ,
