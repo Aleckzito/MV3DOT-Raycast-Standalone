@@ -1,6 +1,7 @@
 #ifndef RC_LOCAL_ARCHITECT_H
 #define RC_LOCAL_ARCHITECT_H
 
+#include "LocalPhysicsSolver.h"
 #include "MiniVoxelGrid.h"
 
 #include <osg/LightSource>
@@ -21,6 +22,10 @@ class LocalChunkMesher;
 class LocalBoulderWorld;
 
 const osg::Vec4 ARCHITECT_COLOR(0.0f, 0.9f, 1.0f, 1.0f);
+// Altura de vuelo sobre el terreno a la que aparece en su sector.
+const float ARCHITECT_SPAWN_ALT = 2.15f;
+// Lado minimo del mapa, en mini-voxels, para que el evento tenga sentido.
+const int kArchitectMinSpan = 24;
 
 enum ArchitectState {
     ARCH_SCANNING = 0,
@@ -48,6 +53,21 @@ public:
     osg::Vec3 position() const { return m_pos; }
     void takeDebris(std::vector<osg::Vec3>& out);
     bool consumeBuilt(osg::Vec3* outPos);
+
+    // 102. Evento de caza. Una sola instancia reutilizable: el motor la
+    // despierta en un sector, el jugador la elimina y vuelve a dormir.
+    void spawnAt(const osg::Vec3& pos);
+    void despawn();
+    bool isAlive() const { return m_alive; }
+    int hp() const { return m_hp; }
+    int maxHp() const { return m_maxHp; }
+    // true si este golpe lo mata.
+    bool takeDamage(int amount);
+    AABB makeAabb() const;
+
+    // Segundos entre capas. Cada capa dispara un rebuild del mesher, asi que en
+    // mapas grandes conviene un ritmo pausado.
+    void setBuildInterval(float seconds) { m_buildInterval = seconds; }
 
 private:
     struct Job {
@@ -106,6 +126,10 @@ private:
     std::vector<osg::Vec3> m_debris;
     osg::Vec3 m_builtPos;
     bool m_builtReady;
+    bool m_alive;
+    int m_hp;
+    int m_maxHp;
+    float m_buildInterval;
 };
 
 } // namespace standalone

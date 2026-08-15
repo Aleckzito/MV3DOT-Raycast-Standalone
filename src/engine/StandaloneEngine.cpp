@@ -259,6 +259,9 @@ StandaloneEngine::StandaloneEngine()
     , m_meleeFlashTtl(0.0f)
     , m_spawnTimer(0.0f)
     , m_spawnSeed(1u)
+    , m_architectTimer(180.0f)
+    , m_architectSeed(4242u)
+    , m_lockedArchitect(false)
     , m_killCount(0)
     , m_survivalTime(0.0f)
     , m_pendingBoss(false)
@@ -354,6 +357,9 @@ bool StandaloneEngine::initialize(const std::string& worldJsonPath)
     m_worldRoot->addChild(m_dummyActor.getNode());
     m_worldRoot->addChild(m_buddy.getNode());
     m_worldRoot->addChild(m_architect.getNode());
+    // 102. Arranca dormido: el evento lo despierta cuando vence el temporizador.
+    m_architect.despawn();
+    resetArchitectTimer();
     m_worldRoot->addChild(m_boxWorld.getNode());
     m_worldRoot->addChild(m_boulderWorld.getNode());
     buildSelectHilite();
@@ -790,6 +796,7 @@ void StandaloneEngine::update(float deltaTime)
             threatBehind);
         updateDrops(deltaTime);
     }
+    updateArchitectEvent(deltaTime);
     {
         const osg::Vec3 dummyNow(m_dummyActor.x(), m_dummyActor.y(), m_dummyActor.z());
         m_architect.update(deltaTime, dummyNow, m_miniVoxels, m_localMesher, m_boulderWorld);
@@ -1207,6 +1214,28 @@ void StandaloneEngine::cycleEntityLockOn()
         it.score = kindW * (0.25f + 0.75f * (facing + 1.0f) * 0.5f) / (0.40f + dist);
         items.push_back(it);
     }
+    // 102.5 El Arquitecto es objetivo prioritario del TAB mientras dure el evento.
+    if (m_architect.isAlive()) {
+        const osg::Vec3 ap = m_architect.position();
+        const float dx = ap.x() - player.x();
+        const float dy = ap.y() - (player.y() + m_dummyActor.height() * 0.5f);
+        const float dz = ap.z() - player.z();
+        const float d2 = dx * dx + dz * dz;
+        if (d2 <= lockR2) {
+            const float dist = std::sqrt(d2 + dy * dy);
+            float facing = 0.0f;
+            if (d2 > 0.0001f) {
+                const float inv = 1.0f / std::sqrt(d2);
+                facing = fx * dx * inv + fz * dz * inv;
+            }
+            Item it;
+            it.kind = 4;
+            it.id = 0;
+            it.sub = 0;
+            it.score = 1.60f * (0.25f + 0.75f * (facing + 1.0f) * 0.5f) / (0.40f + dist);
+            items.push_back(it);
+        }
+    }
     const int nBat = static_cast<int>(m_bats.size());
     for (int i = 0; i < nBat; ++i) {
         const LocalFlyingBat& bat = m_bats[static_cast<size_t>(i)];
@@ -1340,6 +1369,11 @@ void StandaloneEngine::cycleEntityLockOn()
     } else if (m_lockedEnemyIndex >= 0) {
         curKind = 0;
         curId = m_lockedEnemyIndex;
+    } else if (m_lockedArchitect) {
+        // Sin esto, con el Arquitecto fijado no se encuentra el objetivo actual
+        // en la lista, found queda en -1 y el ciclo reinicia en el primero.
+        curKind = 4;
+        curId = 0;
     }
 
     int found = -1;
@@ -1357,6 +1391,7 @@ void StandaloneEngine::cycleEntityLockOn()
     m_lockedCrawlerIndex = -1;
     m_lockedCentipedeIndex = -1;
     m_lockedCentipedeSeg = -1;
+    m_lockedArchitect = false;
     if (items.empty() || next >= static_cast<int>(items.size())) {
         std::cout << "[lock] none\n";
         return;
@@ -1385,6 +1420,12 @@ void StandaloneEngine::cycleEntityLockOn()
         m_crawlers[static_cast<size_t>(m_lockedCrawlerIndex)].syncVisual();
         std::cout << "[lock] crawler " << m_lockedCrawlerIndex << "\n";
         fireContentHook("onLockOn", "crawler");
+        return;
+    }
+    if (pick.kind == 4) {
+        m_lockedArchitect = true;
+        std::cout << "[lock] architect\n";
+        fireContentHook("onLockOn", "architect");
         return;
     }
     m_lockedCentipedeIndex = pick.id;
@@ -1649,6 +1690,130 @@ void StandaloneEngine::spawnEnemyMissile(const osg::Vec3& origin, const osg::Vec
         m_projectileRoot->addChild(shot.getNode());
     }
     m_projectiles.push_back(shot);
+}
+
+void StandaloneEngine::resetArchitectTimer()
+{
+    // 180-300 s. RNG propio: el mismo LCG del resto del motor, no rand().
+    m_architectSeed = m_architectSeed * 1103515245u + 12345u;
+    m_architectTimer = 180.0f + static_cast<float>(m_architectSeed % 121u);
+    if (const char* fast = std::getenv("RC_ARCHITECT_FAST")) {
+        // Solo para pruebas: acorta la espera sin recompilar. Un valor invalido
+        // o <= 0 dejaria el temporizador a cero y spawnearia en bucle.
+        const float value = std::strtof(fast, nullptr);
+        if (value > 0.05f) {
+            m_architectTimer = value;
+        }
+    }
+}
+
+void StandaloneEngine::updateArchitectEvent(float deltaTime)
+{
+    if (m_architect.isAlive()) {
+        return;  // 102.1 Concurrencia maxima: un Arquitecto a la vez.
+    }
+    m_architectTimer -= deltaTime;
+    if (m_architectTimer <= 0.0f) {
+        triggerArchitectSpawn();
+    }
+}
+
+void StandaloneEngine::triggerArchitectSpawn()
+{
+    // 102.2 Los cuadrantes se calculan sobre la extension real del mapa, no con
+    // coordenadas fijas: en el sandbox (voxels 0..20) un sector fijo en 95
+    // habria puesto al Arquitecto a volar sobre el vacio.
+    int minX = 0, minZ = 0, maxX = 0, maxZ = 0;
+    if (!m_miniVoxels.computeBounds(&minX, nullptr, &minZ, &maxX, nullptr, &maxZ)) {
+        return;
+    }
+    const int spanX = maxX - minX + 1;
+    const int spanZ = maxZ - minZ + 1;
+    // 102.2b Mapas diminutos: no hay cuadrantes que valgan, el evento no corre.
+    if (spanX < kArchitectMinSpan || spanZ < kArchitectMinSpan) {
+        m_architectTimer = 30.0f;  // reintentar por si se carga otro mapa
+        return;
+    }
+
+    // Margen del 20% desde cada borde.
+    const int marginX = static_cast<int>(static_cast<float>(spanX) * 0.20f);
+    const int marginZ = static_cast<int>(static_cast<float>(spanZ) * 0.20f);
+    struct Sector {
+        const char* name;
+        int vx;
+        int vz;
+    };
+    const Sector sectors[4] = {
+        { "NOROESTE", minX + marginX, maxZ - marginZ },
+        { "NORESTE",  maxX - marginX, maxZ - marginZ },
+        { "SUROESTE", minX + marginX, minZ + marginZ },
+        { "SURESTE",  maxX - marginX, minZ + marginZ }
+    };
+
+    m_architectSeed = m_architectSeed * 1103515245u + 12345u;
+    const int chosen = static_cast<int>((m_architectSeed >> 16) % 4u);
+    const Sector& sector = sectors[chosen];
+
+    // Cota de terreno: sobre la superficie solida, no enterrado ni en el vacio.
+    const int topY = m_miniVoxels.topSolidY(sector.vx, sector.vz);
+    const float groundY = (topY >= 0)
+                              ? static_cast<float>(topY + 1) * MINI_VOXEL_SIZE
+                              : 0.0f;
+    const osg::Vec3 spawnPos(static_cast<float>(sector.vx) * MINI_VOXEL_SIZE,
+                             groundY + ARCHITECT_SPAWN_ALT,
+                             static_cast<float>(sector.vz) * MINI_VOXEL_SIZE);
+    m_architect.spawnAt(spawnPos);
+    // Ritmo pausado: cada capa dispara un rebuild del mesher.
+    m_architect.setBuildInterval(3.5f);
+
+    m_questAlertText = std::string("[ ALERTA ] ARQUITECTO AZUL EN SECTOR ") + sector.name;
+    m_questAlertTtl = 5.0f;
+    spawnFloatingText(
+        osg::Vec3(spawnPos.x(), spawnPos.y() + 1.4f, spawnPos.z()),
+        "ARQUITECTO", ARCHITECT_COLOR, 0.18f);
+
+    std::cout << "[architect] spawn sector=" << sector.name
+              << " (" << spawnPos.x() << ", " << spawnPos.y() << ", " << spawnPos.z()
+              << ") hp=" << m_architect.maxHp() << "\n";
+    fireContentHook("onArchitect", sector.name);
+}
+
+bool StandaloneEngine::damageArchitect(int amount)
+{
+    if (!m_architect.isAlive()) {
+        return false;
+    }
+    const osg::Vec3 pos = m_architect.position();
+    const bool killed = m_architect.takeDamage(amount);
+
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "-%d", amount);
+    spawnFloatingText(pos, buf, kFloatDmgEnemy);
+
+    if (killed) {
+        onArchitectEliminated(pos);
+    }
+    return killed;
+}
+
+void StandaloneEngine::onArchitectEliminated(const osg::Vec3& dropPos)
+{
+    // 102.3 Recompensa: celdas de energia + EXP alta, y el reloj vuelve a correr.
+    for (int i = 0; i < 3; ++i) {
+        const float off = (static_cast<float>(i) - 1.0f) * 0.45f;
+        spawnLootAt(osg::Vec3(dropPos.x() + off, dropPos.y(), dropPos.z()), ENERGY_CELL);
+    }
+    spawnExpAt(dropPos, 250);
+    spawnDebris(dropPos, ARCHITECT_COLOR);
+
+    m_questAlertText = "[ ARQUITECTO ELIMINADO ] SECTOR ASEGURADO";
+    m_questAlertTtl = 3.5f;
+    spawnFloatingText(dropPos, "SECTOR ASEGURADO", ARCHITECT_COLOR, 0.18f);
+
+    m_lockedArchitect = false;
+    resetArchitectTimer();
+    std::cout << "[architect] eliminado, proximo en " << m_architectTimer << " s\n";
+    fireContentHook("onArchitect", "eliminated");
 }
 
 void StandaloneEngine::spawnDefaultObstacles()
@@ -2782,6 +2947,28 @@ void StandaloneEngine::performMeleeAttack()
         std::cout << "[melee] hit crawler " << c << " HP: " << cr.hp() << "/" << cr.maxHp() << "\n";
         if (!cr.isAlive()) {
             onCrawlerKilled(cr, static_cast<int>(c));
+        }
+    }
+
+    // 102.4 Melee sobre el Arquitecto, mismo alcance y cono que el resto.
+    if (m_architect.isAlive()) {
+        const osg::Vec3 ap = m_architect.position();
+        const float adx = ap.x() - m_dummyActor.x();
+        const float adz = ap.z() - m_dummyActor.z();
+        const float adist2 = adx * adx + adz * adz;
+        if (adist2 <= range2) {
+            const float adist = std::sqrt(adist2);
+            float ndx = fx;
+            float ndz = fz;
+            if (adist > 0.0001f) {
+                ndx = adx / adist;
+                ndz = adz / adist;
+            }
+            if (fx * ndx + fz * ndz > 0.5f) {
+                damageArchitect(15);
+                std::cout << "[melee] hit architect HP: " << m_architect.hp()
+                          << "/" << m_architect.maxHp() << "\n";
+            }
         }
     }
 
@@ -4620,6 +4807,10 @@ bool StandaloneEngine::lockedTargetCenter(osg::Vec3* out) const
     if (out == nullptr) {
         return false;
     }
+    if (m_lockedArchitect && m_architect.isAlive()) {
+        *out = m_architect.position();
+        return true;
+    }
     if (m_lockedEnemyIndex >= 0 &&
         m_lockedEnemyIndex < static_cast<int>(m_enemies.size()) &&
         m_enemies[static_cast<size_t>(m_lockedEnemyIndex)].isAlive) {
@@ -4858,6 +5049,14 @@ void StandaloneEngine::updateProjectiles(float deltaTime)
                     std::cout << "[shot] hit bat\n";
                     break;
                 }
+            }
+            // 102.4 El Arquitecto entra en el pipeline de disparo: sin esto el
+            // evento de caza no se puede completar.
+            if (!dead && m_architect.isAlive() &&
+                segmentHitsAabb(prev, shot.m_pos, m_architect.makeAabb())) {
+                damageArchitect(40);
+                spawnDebris(shot.m_pos, ARCHITECT_COLOR);
+                dead = true;
             }
             if (!dead) {
                 for (size_t c = 0; c < m_crawlers.size(); ++c) {

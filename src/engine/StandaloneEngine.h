@@ -103,6 +103,13 @@ private:
     void spawnDebris(const osg::Vec3& pos, const osg::Vec4& color);
     void spawnFloatingText(const osg::Vec3& pos, const std::string& msg, const osg::Vec4& color,
                            float scale = 0.12f);
+    // 102. Evento de caza del Arquitecto. Una instancia, un temporizador.
+    void updateArchitectEvent(float deltaTime);
+    void triggerArchitectSpawn();
+    void onArchitectEliminated(const osg::Vec3& dropPos);
+    bool damageArchitect(int amount);
+    void resetArchitectTimer();
+
     void spawnDefaultObstacles();
     void spawnDefaultPillars();
     void spawnDefaultBoulders();
@@ -214,6 +221,9 @@ private:
     LocalBoxWorld m_boxWorld;
     LocalBoulderWorld m_boulderWorld;
     LocalArchitect m_architect;
+    float m_architectTimer;
+    unsigned int m_architectSeed;
+    bool m_lockedArchitect;
     LocalBuddyController m_buddy;
     LocalCameraRig m_camRig;
     OsgHud m_hud;
