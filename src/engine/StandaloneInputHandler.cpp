@@ -196,11 +196,14 @@ bool StandaloneInputHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GUI
         }
         setKeyState(key, true);
 
-        // 125. Ctrl derecho libera, como la tecla Host de VirtualBox. Se
-        // ignoran repeticiones automaticas hasta que llegue KEYUP.
+        // 125. Ctrl derecho alterna, como la tecla Host de VirtualBox: libera si
+        // esta capturado y vuelve a capturar si no. Antes solo liberaba, asi que
+        // una vez suelto no habia forma de recuperarlo con el teclado.
+        // Se ignoran las repeticiones automaticas hasta que llegue el KEYUP, o
+        // mantener la tecla alternaria decenas de veces por segundo.
         if (key == osgGA::GUIEventAdapter::KEY_Control_R) {
-            if (!m_rightControlDown && m_engine != nullptr && m_engine->isMouseCaptured()) {
-                m_engine->setMouseCaptured(false);
+            if (!m_rightControlDown && m_engine != nullptr) {
+                m_engine->setMouseCaptured(!m_engine->isMouseCaptured());
             }
             m_rightControlDown = true;
             return true;
@@ -441,6 +444,11 @@ void StandaloneInputHandler::clearKeys()
     m_scrollStrafeFrames = 0;
     m_pointerForwardFrames = 0;
     m_pointerTurnFrames = 0;
+    // Se olvida tambien la ultima posicion del puntero. Si no, al volver de
+    // otra ventana el primer MOVE se compara contra coordenadas viejas y el
+    // salto se lee como un giro o un avance que el jugador no ha pedido.
+    // Con esto, el primer evento solo fija la nueva referencia.
+    m_hasMouse = false;
 }
 
 void StandaloneInputHandler::toggleAtCursor()
