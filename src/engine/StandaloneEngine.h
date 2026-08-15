@@ -163,6 +163,12 @@ private:
     void updateHunterBeams(float dt);
     bool hasCombatLock() const;
     bool lockedTargetCenter(osg::Vec3* out) const;
+    // 123. Velocidad del objetivo fijado, si es una entidad que se desplaza.
+    bool lockedTargetVelocity(osg::Vec3* out) const;
+    // Punto de intercepcion para un proyectil balistico. Cae a la posicion
+    // actual si no hay lock, si el objetivo no se mueve o si es demasiado
+    // rapido para que la aproximacion de primer orden valga.
+    bool leadTargetPoint(const osg::Vec3& muzzle, float bulletSpeed, osg::Vec3* out) const;
     int findFrontBoulder() const;
     int nearestEnemyInCone(const osg::Vec3& origin, const osg::Vec3& facing, float maxDist) const;
     osg::Vec3 nearestCover(const osg::Vec3& from) const;

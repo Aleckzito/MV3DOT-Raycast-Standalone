@@ -14,6 +14,74 @@
 namespace rc {
 namespace standalone {
 
+osg::Vec3 computeLeadPoint(const osg::Vec3& muzzle, const osg::Vec3& targetPos,
+                           const osg::Vec3& targetVel, float bulletSpeed,
+                           float maxFlightTime)
+{
+    if (bulletSpeed <= 0.0001f) {
+        return targetPos;
+    }
+    const osg::Vec3 d = targetPos - muzzle;
+    if (targetVel.length2() <= 1.0e-8f) {
+        return targetPos;  // objetivo quieto: no hay nada que adelantar
+    }
+
+    // Solucion exacta de |D + v*t| = s*t, que es
+    //   (|v|^2 - s^2) t^2 + 2 (D . v) t + |D|^2 = 0
+    // La iteracion de primer orden que habia aqui no converge: con un objetivo
+    // alejandose a 10 m/s daba 13.33 m de adelanto donde el exacto son 15.
+    const float a = targetVel.length2() - bulletSpeed * bulletSpeed;
+    const float b = 2.0f * (d * targetVel);
+    const float c = d.length2();
+
+    float t = -1.0f;
+    if (std::fabs(a) < 1.0e-5f) {
+        // El objetivo va justo a la velocidad de la bala: queda lineal.
+        if (std::fabs(b) > 1.0e-5f) {
+            t = -c / b;
+        }
+    } else {
+        const float disc = b * b - 4.0f * a * c;
+        if (disc >= 0.0f) {
+            const float sq = std::sqrt(disc);
+            const float t1 = (-b + sq) / (2.0f * a);
+            const float t2 = (-b - sq) / (2.0f * a);
+            // La primera intercepcion posible.
+            if (t1 > 0.0f && t2 > 0.0f) {
+                t = (t1 < t2) ? t1 : t2;
+            } else if (t1 > 0.0f) {
+                t = t1;
+            } else if (t2 > 0.0f) {
+                t = t2;
+            }
+        }
+    }
+
+    // Sin raiz positiva no hay intercepcion posible: el objetivo huye mas
+    // rapido de lo que la bala puede alcanzarlo. Se apunta a donde esta.
+    if (t <= 0.0f) {
+        return targetPos;
+    }
+    // La bala vive un tiempo finito. Un objetivo cruzando casi a su velocidad
+    // da una solucion algebraica correcta pero de varios segundos de vuelo: el
+    // proyectil se destruye antes y el disparo sale desviadisimo para nada.
+    //
+    // El limite es >= y no >: updateProjectiles marca la bala muerta en cuanto
+    // el TTL llega a cero, y solo despues comprueba impactos, asi que una
+    // intercepcion justo en el limite tampoco llega a ocurrir.
+    // Y un maxFlightTime <= 0 es una bala que no vuela, no "sin limite".
+    if (maxFlightTime <= 0.0f || t >= maxFlightTime) {
+        return targetPos;
+    }
+    return targetPos + targetVel * t;
+}
+
+} // namespace standalone
+} // namespace rc
+
+namespace rc {
+namespace standalone {
+
 LocalProjectile::LocalProjectile()
     : m_pos(0.0f, 0.0f, 0.0f)
     , m_vel(0.0f, 0.0f, 0.0f)

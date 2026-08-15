@@ -36,6 +36,9 @@ public:
     AABB makeAabb() const;
     AABB makeAabbAt(float x, float y, float z) const;
     bool isAlive() const { return m_alive; }
+    // 123. Desplazamiento real por segundo, ya resueltas las colisiones.
+    osg::Vec3 velocity() const { return m_velocity; }
+    void setVelocity(const osg::Vec3& v) { m_velocity = v; }
     void applyStats(int maxHp, float speed);
     int hp() const { return m_hp; }
     int maxHp() const { return m_maxHp; }
@@ -53,6 +56,7 @@ private:
 
     bool m_alive;
     bool m_targeted;
+    osg::Vec3 m_velocity;
     float m_speed;
     float m_width;
     float m_height;

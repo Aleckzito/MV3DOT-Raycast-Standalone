@@ -528,6 +528,7 @@ void StandaloneEngine::update(float deltaTime)
             continue;
         }
         const float oldX = enemy.pos.x();
+        const float oldY = enemy.pos.y();
         const float oldZ = enemy.pos.z();
         if (enemy.isArcher()) {
             const osg::Vec3 from = enemy.muzzle();
@@ -550,6 +551,14 @@ void StandaloneEngine::update(float deltaTime)
             resolveBossStomp(enemy);
         }
         m_localPhysics.updateEnemyPhysics(enemy, oldX, oldZ, deltaTime, &dummyAabb);
+        // 123. Despues de la fisica: el desplazamiento real, no el intentado.
+        // Incluye Y porque updateEnemyPhysics tambien mueve en vertical (saltos
+        // y caidas), y un enemigo en el aire se adelantaria mal sin ese eje.
+        if (deltaTime > 0.0f) {
+            enemy.setVelocity(osg::Vec3((enemy.pos.x() - oldX) / deltaTime,
+                                        (enemy.pos.y() - oldY) / deltaTime,
+                                        (enemy.pos.z() - oldZ) / deltaTime));
+        }
         enemy.setTargeted(static_cast<int>(e) == m_lockedEnemyIndex);
         enemy.syncVisual();
 
@@ -2208,6 +2217,11 @@ void StandaloneEngine::updateCrawlers(float dt)
             cr.pos.y() = 0.0f;
         }
 
+        // 123. Tras resolver colisiones: la velocidad util es el desplazamiento
+        // que de verdad ocurrio, no el que la IA pidio antes de chocar.
+        if (dt > 0.0f) {
+            cr.setVelocity(osg::Vec3((cr.pos.x() - oldX) / dt, 0.0f, (cr.pos.z() - oldZ) / dt));
+        }
         cr.setTargeted(static_cast<int>(i) == m_lockedCrawlerIndex);
         cr.syncVisual();
 
@@ -2397,6 +2411,11 @@ void StandaloneEngine::updateBats(float dt)
         }
         const osg::Vec3 prev = bat.pos;
         bat.updateAI(dt, playerPos, facing, headY);
+        // 123. Velocidad para la punteria predictiva. Se deriva aqui porque la
+        // IA mueve pos directamente y updateAI tiene varias salidas por estado.
+        if (dt > 0.0f) {
+            bat.setVelocity((bat.pos - prev) / dt);
+        }
         bat.setTargeted(static_cast<int>(i) == m_lockedBatIndex);
 
         if (bat.state() == BAT_DIVE_STRIKE) {
@@ -4545,14 +4564,18 @@ void StandaloneEngine::fireProjectile()
         m_dummyActor.z() + fz * 0.28f);
     osg::Vec3 vel(fx * m_content.gunSpeed(), 0.0f, fz * m_content.gunSpeed());
     osg::Vec3 aim;
-    if (lockedTargetCenter(&aim)) {
+    // 123. Punteria predictiva: contra un murcielago en picada, apuntar a donde
+    // esta garantiza pasar por detras. Se apunta a donde va a estar.
+    if (leadTargetPoint(pos, m_content.gunSpeed(), &aim)) {
         osg::Vec3 dir = aim - pos;
         const float len = dir.length();
         if (len > 0.0001f) {
+            // La direccion se toma en 3D completo: el componente Y es lo que
+            // hacia que los disparos pasaran por debajo de los voladores.
             vel = dir * (m_content.gunSpeed() / len);
         }
     }
-    LocalProjectile shot(pos, vel, 2.00f);
+    LocalProjectile shot(pos, vel, GUN_PROJECTILE_TTL);
     if (m_projectileRoot.valid() && shot.getNode() != nullptr) {
         m_projectileRoot->addChild(shot.getNode());
     }
@@ -4831,6 +4854,48 @@ bool StandaloneEngine::hasCombatLock() const
         return true;
     }
     return false;
+}
+
+bool StandaloneEngine::lockedTargetVelocity(osg::Vec3* out) const
+{
+    if (out == nullptr) {
+        return false;
+    }
+    // Solo las entidades que se desplazan. El Arquitecto vuela pero su AI da
+    // tirones al cambiar de estado, asi que se apunta a su posicion actual.
+    if (m_lockedEnemyIndex >= 0 &&
+        m_lockedEnemyIndex < static_cast<int>(m_enemies.size()) &&
+        m_enemies[static_cast<size_t>(m_lockedEnemyIndex)].isAlive) {
+        *out = m_enemies[static_cast<size_t>(m_lockedEnemyIndex)].velocity();
+        return true;
+    }
+    if (m_lockedBatIndex >= 0 &&
+        m_lockedBatIndex < static_cast<int>(m_bats.size()) &&
+        m_bats[static_cast<size_t>(m_lockedBatIndex)].isAlive()) {
+        *out = m_bats[static_cast<size_t>(m_lockedBatIndex)].velocity();
+        return true;
+    }
+    if (m_lockedCrawlerIndex >= 0 &&
+        m_lockedCrawlerIndex < static_cast<int>(m_crawlers.size()) &&
+        m_crawlers[static_cast<size_t>(m_lockedCrawlerIndex)].isAlive()) {
+        *out = m_crawlers[static_cast<size_t>(m_lockedCrawlerIndex)].velocity();
+        return true;
+    }
+    return false;
+}
+
+bool StandaloneEngine::leadTargetPoint(const osg::Vec3& muzzle, float bulletSpeed,
+                                       osg::Vec3* out) const
+{
+    if (out == nullptr || !lockedTargetCenter(out)) {
+        return false;
+    }
+    osg::Vec3 targetVel;
+    if (!lockedTargetVelocity(&targetVel)) {
+        return true;  // sin velocidad util: se apunta a la posicion actual
+    }
+    *out = computeLeadPoint(muzzle, *out, targetVel, bulletSpeed);
+    return true;
 }
 
 bool StandaloneEngine::lockedTargetCenter(osg::Vec3* out) const
