@@ -55,7 +55,7 @@ std::string LocalContentRegistry::resolve(const std::string& relative)
     return relative;
 }
 
-bool LocalContentRegistry::loadAll()
+bool LocalContentRegistry::loadAll(const std::string& metaRelative)
 {
     m_entries.clear();
     m_byId.clear();
@@ -79,7 +79,14 @@ bool LocalContentRegistry::loadAll()
         }
         loadDefinition(entry);
     }
-    loadMeta(resolve("data/worlds/standalone_sandbox.meta.json"));
+    const std::string metaPath = metaRelative.empty()
+                                     ? resolve("data/worlds/standalone_sandbox.meta.json")
+                                     : resolve(metaRelative);
+    if (!loadMeta(metaPath)) {
+        std::cerr << "[content] WARN meta sin spawns: " << metaPath << "\n";
+    } else {
+        std::cout << "[content] meta <- " << metaPath << "\n";
+    }
     loadLoot(resolve("data/loot/sandbox_loot.json"));
     std::cout << "[content] catalog=" << m_entries.size()
               << " actors=" << m_actors.size()

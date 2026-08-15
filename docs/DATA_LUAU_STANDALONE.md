@@ -121,10 +121,13 @@ y no `<random>`, cuyas distribuciones no están garantizadas entre implementacio
 raycast_standalone.exe data/worlds/arena_120.json
 ```
 
-Eso carga el terreno, pero **no sus spawns**: `loadMeta` lee siempre
-`data/worlds/standalone_sandbox.meta.json`. Para la arena completa hay que copiar
-`arena_120.meta.json` sobre ese archivo. Es una limitación conocida — el meta no se
-deriva del mapa cargado.
+Carga el terreno **y sus spawns**: un mapa pedido por `argv` usa su
+`<mapa>.meta.json` si existe al lado. No hay que copiar nada ni tocar el meta del
+pack, que está versionado.
+
+Sin `argv` el orden se invierte: manda `standalone_sandbox.meta.json` y es él quien
+define `voxelWorld`. La preferencia por `argv` rompe la circularidad — el mapa no
+puede salir de un meta que a su vez depende del mapa.
 
 ---
 

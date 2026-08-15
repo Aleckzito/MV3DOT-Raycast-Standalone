@@ -107,7 +107,9 @@ private:
     void spawnDefaultPillars();
     void spawnDefaultBoulders();
     bool loadWorldJson(const std::string& path);
-    void loadContent();
+    void loadContent(const std::string& metaRelative = std::string());
+    // <mapa>.json -> <mapa>.meta.json, vacio si no existe al lado.
+    static std::string worldMetaSidecar(const std::string& worldRelative);
     void spawnSandboxActors();
     void spawnSandboxNpcs();
     void updateNpcs(float dt);

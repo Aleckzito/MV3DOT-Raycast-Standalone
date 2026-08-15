@@ -131,10 +131,16 @@ void LocalChunkMesher::buildBatch()
             const Face& face = kFaces[f];
             const MiniVoxel neighbor =
                 m_grid->getVoxel(key.vx + face.dx, key.vy + face.dy, key.vz + face.dz);
-            // Cara interna entre dos voxels activos: no se emite. Un solido
-            // junto a agua si dibuja su cara, para que el cauce se vea.
-            if (neighbor.isActive && materialIsLiquid(neighbor.materialId) == liquid) {
-                continue;
+            if (neighbor.isActive) {
+                // En la frontera agua-solido manda el solido: es quien dibuja la
+                // pared del cauce. Si el agua emitiera tambien su cara ahi, las
+                // dos quedarian coplanares (z-fighting y blending sobre si mismo).
+                if (liquid) {
+                    continue;
+                }
+                if (!materialIsLiquid(neighbor.materialId)) {
+                    continue;
+                }
             }
             for (int c = 0; c < 4; ++c) {
                 const osg::Vec3 local = face.corner[c];
