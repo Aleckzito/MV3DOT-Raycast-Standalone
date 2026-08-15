@@ -52,6 +52,14 @@ public:
     // 9.3 Iteracion del mesher sobre celdas activas.
     const VoxelMap& voxels() const { return m_voxels; }
 
+    // Extension real del mapa en indices de voxel. false si esta vacio.
+    // El grid es disperso, asi que se calcula recorriendo las celdas activas.
+    bool computeBounds(int* minX, int* minY, int* minZ,
+                       int* maxX, int* maxY, int* maxZ) const;
+
+    // Y del voxel solido mas alto en (vx, vz). -1 si esa columna esta vacia.
+    int topSolidY(int vx, int vz) const;
+
 private:
     VoxelMap m_voxels;
 };

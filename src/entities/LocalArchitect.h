@@ -22,8 +22,10 @@ class LocalChunkMesher;
 class LocalBoulderWorld;
 
 const osg::Vec4 ARCHITECT_COLOR(0.0f, 0.9f, 1.0f, 1.0f);
-// Altura de vuelo a la que aparece en su sector.
+// Altura de vuelo sobre el terreno a la que aparece en su sector.
 const float ARCHITECT_SPAWN_ALT = 2.15f;
+// Lado minimo del mapa, en mini-voxels, para que el evento tenga sentido.
+const int kArchitectMinSpan = 24;
 
 enum ArchitectState {
     ARCH_SCANNING = 0,

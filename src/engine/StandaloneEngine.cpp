@@ -1369,6 +1369,11 @@ void StandaloneEngine::cycleEntityLockOn()
     } else if (m_lockedEnemyIndex >= 0) {
         curKind = 0;
         curId = m_lockedEnemyIndex;
+    } else if (m_lockedArchitect) {
+        // Sin esto, con el Arquitecto fijado no se encuentra el objetivo actual
+        // en la lista, found queda en -1 y el ciclo reinicia en el primero.
+        curKind = 4;
+        curId = 0;
     }
 
     int found = -1;
@@ -1693,8 +1698,12 @@ void StandaloneEngine::resetArchitectTimer()
     m_architectSeed = m_architectSeed * 1103515245u + 12345u;
     m_architectTimer = 180.0f + static_cast<float>(m_architectSeed % 121u);
     if (const char* fast = std::getenv("RC_ARCHITECT_FAST")) {
-        // Solo para pruebas: acorta la espera sin recompilar.
-        m_architectTimer = static_cast<float>(std::atof(fast));
+        // Solo para pruebas: acorta la espera sin recompilar. Un valor invalido
+        // o <= 0 dejaria el temporizador a cero y spawnearia en bucle.
+        const float value = std::strtof(fast, nullptr);
+        if (value > 0.05f) {
+            m_architectTimer = value;
+        }
     }
 }
 
@@ -1711,25 +1720,48 @@ void StandaloneEngine::updateArchitectEvent(float deltaTime)
 
 void StandaloneEngine::triggerArchitectSpawn()
 {
-    // 102.2 Cuadrantes lejanos, en coordenadas de MUNDO. El mapa de 120x120
-    // mini-voxels mide 40x40 unidades, asi que (25,95) voxels son (8.3, 31.7).
+    // 102.2 Los cuadrantes se calculan sobre la extension real del mapa, no con
+    // coordenadas fijas: en el sandbox (voxels 0..20) un sector fijo en 95
+    // habria puesto al Arquitecto a volar sobre el vacio.
+    int minX = 0, minZ = 0, maxX = 0, maxZ = 0;
+    if (!m_miniVoxels.computeBounds(&minX, nullptr, &minZ, &maxX, nullptr, &maxZ)) {
+        return;
+    }
+    const int spanX = maxX - minX + 1;
+    const int spanZ = maxZ - minZ + 1;
+    // 102.2b Mapas diminutos: no hay cuadrantes que valgan, el evento no corre.
+    if (spanX < kArchitectMinSpan || spanZ < kArchitectMinSpan) {
+        m_architectTimer = 30.0f;  // reintentar por si se carga otro mapa
+        return;
+    }
+
+    // Margen del 20% desde cada borde.
+    const int marginX = static_cast<int>(static_cast<float>(spanX) * 0.20f);
+    const int marginZ = static_cast<int>(static_cast<float>(spanZ) * 0.20f);
     struct Sector {
         const char* name;
-        float x;
-        float z;
+        int vx;
+        int vz;
     };
     const Sector sectors[4] = {
-        { "NOROESTE", 25.0f * MINI_VOXEL_SIZE, 95.0f * MINI_VOXEL_SIZE },
-        { "NORESTE",  95.0f * MINI_VOXEL_SIZE, 95.0f * MINI_VOXEL_SIZE },
-        { "SUROESTE", 25.0f * MINI_VOXEL_SIZE, 25.0f * MINI_VOXEL_SIZE },
-        { "SURESTE",  95.0f * MINI_VOXEL_SIZE, 25.0f * MINI_VOXEL_SIZE }
+        { "NOROESTE", minX + marginX, maxZ - marginZ },
+        { "NORESTE",  maxX - marginX, maxZ - marginZ },
+        { "SUROESTE", minX + marginX, minZ + marginZ },
+        { "SURESTE",  maxX - marginX, minZ + marginZ }
     };
 
     m_architectSeed = m_architectSeed * 1103515245u + 12345u;
     const int chosen = static_cast<int>((m_architectSeed >> 16) % 4u);
     const Sector& sector = sectors[chosen];
 
-    const osg::Vec3 spawnPos(sector.x, ARCHITECT_SPAWN_ALT, sector.z);
+    // Cota de terreno: sobre la superficie solida, no enterrado ni en el vacio.
+    const int topY = m_miniVoxels.topSolidY(sector.vx, sector.vz);
+    const float groundY = (topY >= 0)
+                              ? static_cast<float>(topY + 1) * MINI_VOXEL_SIZE
+                              : 0.0f;
+    const osg::Vec3 spawnPos(static_cast<float>(sector.vx) * MINI_VOXEL_SIZE,
+                             groundY + ARCHITECT_SPAWN_ALT,
+                             static_cast<float>(sector.vz) * MINI_VOXEL_SIZE);
     m_architect.spawnAt(spawnPos);
     // Ritmo pausado: cada capa dispara un rebuild del mesher.
     m_architect.setBuildInterval(3.5f);
