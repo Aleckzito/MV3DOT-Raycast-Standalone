@@ -47,6 +47,11 @@ public:
     void takeDamage(int amount, const osg::Vec3& origin);
 
     AABB makeAabb() const;
+    // Desplazamiento por segundo del ultimo update. La IA mueve pos
+    // directamente y updateAI tiene varias salidas por estado, asi que la
+    // deriva el motor alrededor de la llamada en vez de integrarse aqui.
+    osg::Vec3 velocity() const { return m_velocity; }
+    void setVelocity(const osg::Vec3& v) { m_velocity = v; }
     bool isAlive() const { return m_alive; }
     bool isDiveStrike() const { return m_alive && m_state == BAT_DIVE_STRIKE; }
     BatState state() const { return m_state; }
@@ -80,6 +85,7 @@ private:
     float m_height;
     float m_depth;
     osg::Vec3 m_diveDir;
+    osg::Vec3 m_velocity;
     osg::ref_ptr<osg::PositionAttitudeTransform> m_pat;
     osg::ref_ptr<osg::MatrixTransform> m_wingL;
     osg::ref_ptr<osg::MatrixTransform> m_wingR;

@@ -52,6 +52,9 @@ public:
     float depth() const { return m_depth; }
     float velY() const { return m_velY; }
     void setVelY(float velY) { m_velY = velY; }
+    // 123. Desplazamiento horizontal real por segundo, ya aplicada la fisica.
+    osg::Vec3 velocity() const { return m_velocity; }
+    void setVelocity(const osg::Vec3& v) { m_velocity = v; }
 
     AABB makeAabb() const;
     AABB makeAabbAt(float x, float y, float z) const;
@@ -63,6 +66,7 @@ private:
 
     float m_speed;
     float m_velY;
+    osg::Vec3 m_velocity;
     float m_width;
     float m_height;
     float m_depth;

@@ -14,6 +14,41 @@
 namespace rc {
 namespace standalone {
 
+osg::Vec3 computeLeadPoint(const osg::Vec3& muzzle, const osg::Vec3& targetPos,
+                           const osg::Vec3& targetVel, float bulletSpeed)
+{
+    if (bulletSpeed <= 0.0001f) {
+        return targetPos;
+    }
+    const float targetSpeed = targetVel.length();
+    if (targetSpeed <= 0.0001f) {
+        return targetPos;  // objetivo quieto: no hay nada que adelantar
+    }
+    // Por encima de esta fraccion la aproximacion de primer orden diverge y
+    // apuntaria muy por delante del objetivo.
+    if (targetSpeed > bulletSpeed * 0.85f) {
+        return targetPos;
+    }
+
+    const float dist = (targetPos - muzzle).length();
+    if (dist < 0.0001f) {
+        return targetPos;
+    }
+
+    osg::Vec3 lead = targetPos + targetVel * (dist / bulletSpeed);
+    const float dist2 = (lead - muzzle).length();
+    if (dist2 > 0.0001f) {
+        lead = targetPos + targetVel * (dist2 / bulletSpeed);
+    }
+    return lead;
+}
+
+} // namespace standalone
+} // namespace rc
+
+namespace rc {
+namespace standalone {
+
 LocalProjectile::LocalProjectile()
     : m_pos(0.0f, 0.0f, 0.0f)
     , m_vel(0.0f, 0.0f, 0.0f)

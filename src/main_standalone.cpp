@@ -242,6 +242,76 @@ int selfTestChunks()
     return failures == 0 ? 0 : 1;
 }
 
+// Verifica la cinematica de intercepcion con numeros conocidos. La punteria no
+// se puede comprobar disparando de forma reproducible, pero la matematica si.
+int selfTestAim()
+{
+    using namespace rc::standalone;
+
+    int failures = 0;
+    const float bullet = 30.0f;  // gunSpeed tipico
+
+    struct Case {
+        const char* name;
+        osg::Vec3 muzzle;
+        osg::Vec3 target;
+        osg::Vec3 vel;
+        float speed;
+        bool expectLead;  // se espera que el punto se desplace
+    };
+    const Case cases[6] = {
+        // Objetivo quieto: el punto no se toca.
+        { "quieto        ", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(0,0,0), bullet, false },
+        // Cruzando en Z a 10 m/s a 30 m: la bala tarda 1 s, adelanto ~10 m.
+        { "cruza en Z    ", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(0,0,10), bullet, true },
+        // Subiendo: el adelanto debe tener componente Y, que es lo que hacia
+        // que los disparos pasaran por debajo de los voladores.
+        { "sube en Y     ", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(0,8,0), bullet, true },
+        // Alejandose en linea: el punto se aleja mas.
+        { "se aleja      ", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(10,0,0), bullet, true },
+        // Mas rapido que la bala: la aproximacion no vale, se deja igual.
+        { "supera la bala", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(0,0,40), bullet, false },
+        // Velocidad de bala invalida: no se toca.
+        { "bala v=0      ", osg::Vec3(0,0,0), osg::Vec3(30,0,0), osg::Vec3(0,0,10), 0.0f, false }
+    };
+
+    for (int i = 0; i < 6; ++i) {
+        const Case& c = cases[i];
+        const osg::Vec3 lead = computeLeadPoint(c.muzzle, c.target, c.vel, c.speed);
+        const float shift = (lead - c.target).length();
+        const bool moved = shift > 0.01f;
+        const bool ok = (moved == c.expectLead);
+        if (!ok) failures += 1;
+        std::cout << "[selftest-aim] " << c.name
+                  << " adelanto=" << shift
+                  << " esperado=" << (c.expectLead ? "si" : "no")
+                  << (ok ? "  OK" : "  FALLO") << "\n";
+    }
+
+    // El caso que importa: con el adelanto, el proyectil y el objetivo llegan
+    // al mismo punto a la vez. Sin el, el objetivo ya no esta ahi.
+    const osg::Vec3 muzzle(0, 0, 0);
+    const osg::Vec3 target(30, 0, 0);
+    const osg::Vec3 vel(0, 0, 10);
+    const osg::Vec3 lead = computeLeadPoint(muzzle, target, vel, bullet);
+    const float tBullet = (lead - muzzle).length() / bullet;
+    const osg::Vec3 targetAtT = target + vel * tBullet;
+    const float missDistance = (lead - targetAtT).length();
+
+    const osg::Vec3 naiveDir = target - muzzle;
+    const float tNaive = naiveDir.length() / bullet;
+    const float naiveMiss = (target - (target + vel * tNaive)).length();
+
+    const bool okIntercept = missDistance < 0.35f && missDistance < naiveMiss;
+    std::cout << "[selftest-aim] intercepcion: error_con_lead=" << missDistance
+              << " error_sin_lead=" << naiveMiss
+              << (okIntercept ? "  OK" : "  FALLO") << "\n";
+    if (!okIntercept) failures += 1;
+
+    std::cout << "[selftest-aim] " << (failures == 0 ? "TODO OK" : "FALLOS") << "\n";
+    return failures == 0 ? 0 : 1;
+}
+
 } // namespace
 
 // 1.3 Punto de entrada local. SDL2 + OSG. Cero sockets.
@@ -253,6 +323,9 @@ int main(int argc, char** argv)
     }
     if (argc > 1 && argv[1] != nullptr && std::string(argv[1]) == "--selftest-chunks") {
         return selfTestChunks();
+    }
+    if (argc > 1 && argv[1] != nullptr && std::string(argv[1]) == "--selftest-aim") {
+        return selfTestAim();
     }
 
     // 11. argv[1] opcional = mapa de voxeles. Sin argumento manda el meta del pack.
