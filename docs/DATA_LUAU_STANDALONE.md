@@ -93,6 +93,41 @@ El POST_BUILD tampoco copia `data/player/save` junto al exe, para no recrear un 
 
 ---
 
+## Arena procedural
+
+`src/world/TerrainGenerator.{h,cpp}` genera una arena determinista de 120×120
+mini-voxels (40×40 tiles). **No toca el pipeline**: produce un `MiniVoxelGrid`, lo
+vuelca con el `saveWorld` de siempre, y el motor lo carga por la ruta normal.
+
+```bash
+raycast_standalone.exe --gen-arena data/worlds/arena_120.json 1337
+```
+
+Escribe dos archivos: el mapa y su `*.meta.json` con `voxelWorld`, `playerSpawn` y
+los spawns. Misma semilla ⇒ mapa idéntico byte a byte; el ruido usa un hash propio
+y no `<random>`, cuyas distribuciones no están garantizadas entre implementaciones.
+
+| Elemento | Cómo se genera |
+|---|---|
+| Relieve | Value noise bilineal sobre `baseHeight` |
+| Río | Eje serpenteante en Z, cauce tallado bajo la lámina de agua |
+| Riberas | Franja de `MAT_SAND` a ambos lados del cauce |
+| Safe zone | Disco aplanado en el centro; el río lo rodea |
+| Anillo | 12 enemigos (`archer`/`bat`/`crawler`) en círculo alrededor del centro |
+
+### Cómo jugarla
+
+```bash
+raycast_standalone.exe data/worlds/arena_120.json
+```
+
+Eso carga el terreno, pero **no sus spawns**: `loadMeta` lee siempre
+`data/worlds/standalone_sandbox.meta.json`. Para la arena completa hay que copiar
+`arena_120.meta.json` sobre ese archivo. Es una limitación conocida — el meta no se
+deriva del mapa cargado.
+
+---
+
 ## Plantillas vs partidas
 
 El estado del jugador vive en dos sitios distintos y **no se pisan**:
