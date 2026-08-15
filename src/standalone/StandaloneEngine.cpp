@@ -1,5 +1,6 @@
 #include "StandaloneEngine.h"
 
+#include "PlayerSave.h"
 #include "StandaloneWorldIO.h"
 #include "world_defaults.h"
 
@@ -1719,7 +1720,7 @@ void StandaloneEngine::loadContent()
     if (!m_scripts.init() || !m_scripts.loadManifest("data/scripts/scripts.json")) {
         std::cerr << "[script] WARN Luau off\n";
     }
-    m_inventory.load("data/player/sandbox_inventory.json");
+    m_inventory.load(playerLoadPath("data/player/sandbox_inventory.json"));
     m_quests.load();
     m_dummyActor.setVocation(m_quests.vocationId());
 }
@@ -4983,7 +4984,7 @@ void StandaloneEngine::setEditorMode(bool active)
 
 void StandaloneEngine::shutdown()
 {
-    m_inventory.save(LocalContentRegistry::resolve("data/player/sandbox_inventory.json"));
+    m_inventory.save(playerSavePath("data/player/sandbox_inventory.json"));
     m_quests.save();
     if (m_viewer.valid()) {
         m_viewer->setDone(true);

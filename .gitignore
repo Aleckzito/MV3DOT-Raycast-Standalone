@@ -1,5 +1,10 @@
 # Generated build output
 /build/
+/build_*/
+rc_shared_math_grid.lib
+
+# Partidas locales. Las plantillas versionadas viven en data/player/*.json
+/data/player/save/
 
 # Runtime logs
 *.log

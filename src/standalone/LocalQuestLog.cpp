@@ -1,5 +1,6 @@
 #include "LocalQuestLog.h"
 #include "LocalContentRegistry.h"
+#include "PlayerSave.h"
 
 #include <nlohmann/json.hpp>
 
@@ -19,8 +20,9 @@ bool LocalQuestLog::load()
     m_lastEvent.clear();
     loadQuestFile(LocalContentRegistry::resolve("data/quests/first_blood.json"));
     loadVocations(LocalContentRegistry::resolve("data/vocations/vocations_sandbox.json"));
-    m_storagePath = LocalContentRegistry::resolve("data/player/sandbox_storage.json");
-    loadStorage(m_storagePath);
+    // La partida se escribe en data/player/save; la plantilla solo se lee.
+    m_storagePath = playerSavePath("data/player/sandbox_storage.json");
+    loadStorage(playerLoadPath("data/player/sandbox_storage.json"));
     std::cout << "[quest] loaded defs=" << m_quests.size()
               << " vocations=" << m_vocations.size()
               << " vocationId=" << m_vocationId << "\n";
@@ -125,7 +127,7 @@ bool LocalQuestLog::save() const
     doc["flags"] = flags;
     std::string path = m_storagePath;
     if (path.empty()) {
-        path = LocalContentRegistry::resolve("data/player/sandbox_storage.json");
+        path = playerSavePath("data/player/sandbox_storage.json");
     }
     const std::filesystem::path outPath(path);
     if (outPath.has_parent_path()) {
