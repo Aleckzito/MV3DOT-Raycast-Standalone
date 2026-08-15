@@ -1,0 +1,12 @@
+{
+  "schema": "otraycast.npc.v1",
+  "kind": "npc",
+  "contentId": "otr.npc.sandbox.oracle",
+  "runtimeId": 9301,
+  "status": "design_stub",
+  "name": "Oracle",
+  "displayName": "Oracle",
+  "dialog": { "greeting": "Choose a path when vocations exist." },
+  "spawnHint": { "x": 4.0, "y": 0.0, "z": 10.0 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "S8 stub" }
+}

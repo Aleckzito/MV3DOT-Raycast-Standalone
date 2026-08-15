@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "schema": "otraycast.ui.hotbar_roles.v1",
+  "note": "BASE 8-slot RPG reference. Not wired to standalone HUD.",
+  "slots": [
+    { "index": 1, "role": "Potion" },
+    { "index": 2, "role": "RecoverySpell" },
+    { "index": 3, "role": "Rune" },
+    { "index": 4, "role": "LeftHand" },
+    { "index": 5, "role": "RightHand" },
+    { "index": 6, "role": "SupportSpell" },
+    { "index": 7, "role": "AttackSpell" },
+    { "index": 8, "role": "SpecialWeapon" }
+  ]
+}

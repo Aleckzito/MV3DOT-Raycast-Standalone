@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otraycast.local/schemas/content/actor.schema.json",
+  "title": "OTRaycast actor / creature definition",
+  "type": "object",
+  "additionalProperties": true,
+  "allOf": [{ "$ref": "identity.schema.json" }],
+  "required": ["kind", "schema", "name"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["otraycast.actor.v1", "otraycast.creatures.companion.v1"]
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["actor", "companion", "monster", "npc_body"]
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "visual": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "spriteId": { "type": "integer" },
+        "asset": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "schema": "otraycast.ui.hotbar_sandbox.v1",
+  "legend": "[1] Jump | [2] Gun (Auto) | [3] Melee | [4] Bomb | [5] Laser",
+  "slots": [
+    { "index": 1, "key": "1", "role": "Jump", "contentId": "otr.ability.sandbox.jump" },
+    { "index": 2, "key": "2", "role": "GunAuto", "contentId": "otr.ability.sandbox.gun" },
+    { "index": 3, "key": "3", "role": "Melee", "contentId": "otr.ability.sandbox.melee" },
+    { "index": 4, "key": "4", "role": "Bomb", "contentId": "otr.ability.sandbox.bomb" },
+    { "index": 5, "key": "5", "role": "HunterLaser", "contentId": "otr.ability.sandbox.hunter_laser" }
+  ]
+}

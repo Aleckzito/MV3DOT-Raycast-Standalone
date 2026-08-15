@@ -1,0 +1,12 @@
+{
+  "schema": "otraycast.npc.v1",
+  "kind": "npc",
+  "contentId": "otr.npc.sandbox.merchant",
+  "runtimeId": 9302,
+  "status": "design_stub",
+  "name": "Merchant",
+  "displayName": "Merchant",
+  "dialog": { "greeting": "Shop needs LocalInventory (S7)." },
+  "spawnHint": { "x": 8.0, "y": 0.0, "z": 8.0 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "S8 stub" }
+}

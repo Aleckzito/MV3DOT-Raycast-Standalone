@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otraycast.local/schemas/content/identity.schema.json",
+  "title": "OTRaycast content identity",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["contentId", "runtimeId", "status", "provenance"],
+  "properties": {
+    "contentId": {
+      "type": "string",
+      "pattern": "^otr\\.[a-z0-9_.]+$",
+      "minLength": 5,
+      "maxLength": 128
+    },
+    "runtimeId": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "reserved_canary", "blocked_unused", "remapped_local", "design_stub", "planned"]
+    },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "externalAliases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["namespace", "id", "purpose"],
+        "additionalProperties": false,
+        "properties": {
+          "namespace": { "type": "string", "minLength": 1 },
+          "id": { "type": ["integer", "string"] },
+          "purpose": {
+            "type": "string",
+            "enum": ["import_lookup_only", "migration_note", "editor_hint"]
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["implementation", "assetLicense"],
+      "additionalProperties": true,
+      "properties": {
+        "implementation": {
+          "type": "string",
+          "enum": ["original", "reference_only", "user_owned"]
+        },
+        "assetLicense": { "type": "string", "minLength": 1 },
+        "referenceOnly": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

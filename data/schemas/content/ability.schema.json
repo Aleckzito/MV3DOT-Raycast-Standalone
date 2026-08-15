@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otraycast.local/schemas/content/ability.schema.json",
+  "title": "OTRaycast ability definition",
+  "type": "object",
+  "additionalProperties": true,
+  "allOf": [{ "$ref": "identity.schema.json" }],
+  "required": ["kind", "schema", "displayName"],
+  "properties": {
+    "schema": { "const": "otraycast.ability.v1" },
+    "kind": { "const": "ability" },
+    "abilityClass": {
+      "type": "string",
+      "enum": ["attack", "support", "recovery", "movement", "special"]
+    },
+    "cooldownMs": { "type": "number", "minimum": 0 },
+    "resourceCost": { "type": "integer", "minimum": 0 }
+  }
+}

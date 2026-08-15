@@ -1,0 +1,29 @@
+{
+  "schema": "otraycast.content_registry.catalog.v1",
+  "version": 1,
+  "notes": "Sandbox roster 1:1 with current C++ types. runtimeId 9xxx local.",
+  "entries": [
+    { "contentId": "otr.actor.sandbox.grunt", "runtimeId": 9001, "kind": "actor", "status": "active", "displayName": "Grunt", "definitionPath": "data/creatures/sandbox/grunt.json" },
+    { "contentId": "otr.actor.sandbox.archer", "runtimeId": 9002, "kind": "actor", "status": "active", "displayName": "Archer", "definitionPath": "data/creatures/sandbox/archer.json" },
+    { "contentId": "otr.actor.sandbox.boss", "runtimeId": 9003, "kind": "actor", "status": "active", "displayName": "Elite Boss", "definitionPath": "data/creatures/sandbox/boss.json" },
+    { "contentId": "otr.actor.sandbox.bat", "runtimeId": 9004, "kind": "actor", "status": "active", "displayName": "Flying Bat", "definitionPath": "data/creatures/sandbox/bat.json" },
+    { "contentId": "otr.actor.sandbox.crawler", "runtimeId": 9005, "kind": "actor", "status": "active", "displayName": "Crawler", "definitionPath": "data/creatures/sandbox/crawler.json" },
+    { "contentId": "otr.actor.sandbox.centipede", "runtimeId": 9006, "kind": "actor", "status": "active", "displayName": "Centipede", "definitionPath": "data/creatures/sandbox/centipede.json" },
+    { "contentId": "otr.actor.sandbox.architect", "runtimeId": 9007, "kind": "actor", "status": "active", "displayName": "Blue Architect", "definitionPath": "data/creatures/sandbox/architect.json" },
+    { "contentId": "otr.actor.companion.fary", "runtimeId": 9020, "kind": "actor", "status": "active", "displayName": "Fary", "definitionPath": "data/creatures/companions/fary.json" },
+    { "contentId": "otr.ability.sandbox.jump", "runtimeId": 9105, "kind": "ability", "status": "active", "displayName": "Jump", "definitionPath": "data/abilities/jump.json" },
+    { "contentId": "otr.ability.sandbox.gun", "runtimeId": 9101, "kind": "ability", "status": "active", "displayName": "Gun Auto", "definitionPath": "data/abilities/gun.json" },
+    { "contentId": "otr.ability.sandbox.melee", "runtimeId": 9102, "kind": "ability", "status": "active", "displayName": "Melee", "definitionPath": "data/abilities/melee.json" },
+    { "contentId": "otr.ability.sandbox.bomb", "runtimeId": 9103, "kind": "ability", "status": "active", "displayName": "Bomb 3x3", "definitionPath": "data/abilities/bomb_3x3.json" },
+    { "contentId": "otr.ability.sandbox.hunter_laser", "runtimeId": 9104, "kind": "ability", "status": "active", "displayName": "Hunter Laser", "definitionPath": "data/abilities/hunter_laser.json" },
+    { "contentId": "otr.item.sandbox.energy_cell", "runtimeId": 9201, "kind": "item", "status": "active", "displayName": "Energy Cell", "definitionPath": "data/items/energy_cell.json" },
+    { "contentId": "otr.item.sandbox.small_hp", "runtimeId": 9202, "kind": "item", "status": "active", "displayName": "Small HP", "definitionPath": "data/items/small_hp.json" },
+    { "contentId": "otr.item.sandbox.large_hp", "runtimeId": 9203, "kind": "item", "status": "active", "displayName": "Large HP", "definitionPath": "data/items/large_hp.json" },
+    { "contentId": "otr.npc.sandbox.oracle", "runtimeId": 9301, "kind": "npc", "status": "design_stub", "displayName": "Oracle", "definitionPath": "data/npc/oracle.json" },
+    { "contentId": "otr.npc.sandbox.merchant", "runtimeId": 9302, "kind": "npc", "status": "design_stub", "displayName": "Merchant", "definitionPath": "data/npc/merchant.json" },
+    { "contentId": "otr.quest.sandbox.first_blood", "runtimeId": 9401, "kind": "quest", "status": "active", "displayName": "First Blood", "definitionPath": "data/quests/first_blood.json" },
+    { "contentId": "otr.vocation.none", "runtimeId": 9500, "kind": "vocation", "status": "active", "displayName": "None", "definitionPath": "data/vocations/vocations_sandbox.json" },
+    { "contentId": "otr.vocation.scout", "runtimeId": 9501, "kind": "vocation", "status": "active", "displayName": "Scout", "definitionPath": "data/vocations/vocations_sandbox.json" },
+    { "contentId": "otr.pack.sandbox", "runtimeId": 9601, "kind": "pack", "status": "active", "displayName": "Sandbox", "definitionPath": "data/packs/sandbox/pack.json" }
+  ]
+}

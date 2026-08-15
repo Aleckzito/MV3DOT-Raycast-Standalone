@@ -1,0 +1,12 @@
+{
+  "schema": "otraycast.ability.v1",
+  "kind": "ability",
+  "contentId": "otr.ability.sandbox.gun",
+  "runtimeId": 9101,
+  "status": "active",
+  "displayName": "Gun Auto",
+  "abilityClass": "attack",
+  "hotbarSlot": 2,
+  "combat": { "damage": 30, "speed": 30.0, "range": 32.0, "duration": 2.0, "energyCost": 0, "homing": true },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "Tecla 2 auto-aim 30 u/s" }
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otraycast.local/schemas/content/quest.schema.json",
+  "title": "OTRaycast quest definition (definition only; progress is persistence)",
+  "type": "object",
+  "additionalProperties": true,
+  "allOf": [{ "$ref": "identity.schema.json" }],
+  "required": ["kind", "schema", "title"],
+  "properties": {
+    "schema": { "const": "otraycast.quest.v1" },
+    "kind": { "const": "quest" },
+    "title": { "type": "string", "minLength": 1 },
+    "journalEntryId": { "type": "string" },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "objectives": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

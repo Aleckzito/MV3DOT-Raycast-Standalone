@@ -1,0 +1,12 @@
+{
+  "schema": "otraycast.creatures.companion.v1",
+  "kind": "companion",
+  "contentId": "otr.actor.companion.fary",
+  "runtimeId": 9020,
+  "status": "active",
+  "name": "Fary",
+  "displayName": "Fary",
+  "combat": { "maxHp": 100, "speed": 3.0, "attackDamage": 8 },
+  "behavior": { "followDistance": 1.5, "talks": true },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "LocalFary / LocalBuddyController" }
+}

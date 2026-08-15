@@ -1,0 +1,9 @@
+{
+  "schema": "otraycast.vocation.v1",
+  "version": 1,
+  "status": "active",
+  "vocations": [
+    { "id": 0, "name": "None", "contentId": "otr.vocation.none" },
+    { "id": 1, "name": "Scout", "contentId": "otr.vocation.scout", "notes": "Oracle grants after First Blood" }
+  ]
+}

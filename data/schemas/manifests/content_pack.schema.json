@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otraycast.local/schemas/manifests/content_pack.schema.json",
+  "title": "OTRaycast content pack manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "packId", "version", "status", "content"],
+  "properties": {
+    "schema": { "const": "otraycast.content_pack.v1" },
+    "packId": {
+      "type": "string",
+      "pattern": "^otr\\.pack\\.[a-z0-9_]+$"
+    },
+    "version": { "type": "integer", "minimum": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["active", "design_stub", "planned"]
+    },
+    "displayName": { "type": "string" },
+    "requires": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^otr\\.pack\\.[a-z0-9_]+$"
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maps": { "type": "array", "items": { "type": "string" } },
+        "items": { "type": "array", "items": { "type": "string", "pattern": "^otr\\." } },
+        "creatures": { "type": "array", "items": { "type": "string", "pattern": "^otr\\." } },
+        "npcs": { "type": "array", "items": { "type": "string", "pattern": "^otr\\." } },
+        "quests": { "type": "array", "items": { "type": "string", "pattern": "^otr\\." } },
+        "abilities": { "type": "array", "items": { "type": "string", "pattern": "^otr\\." } },
+        "events": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

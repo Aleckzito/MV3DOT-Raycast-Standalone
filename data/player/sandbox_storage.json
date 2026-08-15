@@ -1,0 +1,8 @@
+{
+  "flags": {
+    "otr.quest.sandbox.first_blood": "done"
+  },
+  "schema": "otraycast.player.storage.v1",
+  "version": 1,
+  "vocationId": 1
+}

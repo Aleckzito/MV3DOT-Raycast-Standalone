@@ -1,0 +1,10 @@
+{
+  "schema": "otraycast.player.inventory.v1",
+  "slots": [
+    {
+      "contentId": "otr.item.sandbox.energy_cell",
+      "count": 117
+    }
+  ],
+  "version": 1
+}

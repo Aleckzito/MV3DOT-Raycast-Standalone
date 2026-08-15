@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otraycast.local/schemas/content/npc.schema.json",
+  "title": "OTRaycast NPC definition",
+  "type": "object",
+  "additionalProperties": true,
+  "allOf": [{ "$ref": "identity.schema.json" }],
+  "required": ["kind", "schema", "name"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["otraycast.npc.v1", "otraycast.npc.dialog.v1"]
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["npc", "npc_dialog"]
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "dialog": { "type": "object", "additionalProperties": true },
+    "gate": { "type": "object", "additionalProperties": true },
+    "spawnHint": { "type": "object", "additionalProperties": true }
+  }
+}

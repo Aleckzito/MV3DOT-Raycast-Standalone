@@ -1,0 +1,18 @@
+{
+  "schema": "otraycast.world.sandbox_meta.v1",
+  "version": 1,
+  "packId": "otr.pack.sandbox",
+  "voxelWorld": "data/worlds/standalone_sandbox.json",
+  "playerSpawn": { "x": 4.0, "y": 5.0, "z": 4.0 },
+  "spawns": [
+    { "kind": "grunt", "contentId": "otr.actor.sandbox.grunt", "x": 4.0, "y": 0.0, "z": 1.2 },
+    { "kind": "grunt", "contentId": "otr.actor.sandbox.grunt", "x": 6.4, "y": 0.0, "z": 5.6 },
+    { "kind": "grunt", "contentId": "otr.actor.sandbox.grunt", "x": 1.7, "y": 0.0, "z": 6.1 },
+    { "kind": "archer", "contentId": "otr.actor.sandbox.archer", "x": 4.0, "y": 0.0, "z": -8.0 },
+    { "kind": "archer", "contentId": "otr.actor.sandbox.archer", "x": 16.0, "y": 0.0, "z": 4.0 },
+    { "kind": "bat", "contentId": "otr.actor.sandbox.bat", "x": 2.2, "y": 2.8, "z": 6.4 },
+    { "kind": "bat", "contentId": "otr.actor.sandbox.bat", "x": 6.5, "y": 2.8, "z": 1.6 },
+    { "kind": "crawler", "contentId": "otr.actor.sandbox.crawler", "x": 7.2, "y": 0.0, "z": 3.1 },
+    { "kind": "crawler", "contentId": "otr.actor.sandbox.crawler", "x": 1.3, "y": 0.0, "z": 7.1 }
+  ]
+}

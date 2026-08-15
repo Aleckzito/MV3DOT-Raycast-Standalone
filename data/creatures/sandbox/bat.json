@@ -1,0 +1,11 @@
+{
+  "schema": "otraycast.actor.v1",
+  "kind": "monster",
+  "contentId": "otr.actor.sandbox.bat",
+  "runtimeId": 9004,
+  "status": "active",
+  "name": "FlyingBat",
+  "displayName": "Flying Bat",
+  "combat": { "maxHp": 100, "speed": 22.0, "attackDamage": 20, "cruiseAlt": 2.8, "fleeAlt": 3.5 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "LocalFlyingBat" }
+}

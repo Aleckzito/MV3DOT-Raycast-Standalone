@@ -1,0 +1,12 @@
+{
+  "schema": "otraycast.ability.v1",
+  "kind": "ability",
+  "contentId": "otr.ability.sandbox.jump",
+  "runtimeId": 9105,
+  "status": "active",
+  "displayName": "Jump",
+  "abilityClass": "movement",
+  "hotbarSlot": 1,
+  "combat": { "damage": 0, "speed": 5.0, "range": 0.0, "duration": 0.0, "energyCost": 0 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox" }
+}

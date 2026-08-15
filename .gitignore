@@ -1,0 +1,17 @@
+# Generated build output
+/build/
+
+# Runtime logs
+*.log
+
+# CMake and Visual Studio user files
+CMakeUserPresets.json
+.vs/
+*.user
+*.suo
+
+# Editor and operating-system metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

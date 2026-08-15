@@ -1,0 +1,12 @@
+{
+  "schema": "otraycast.ability.v1",
+  "kind": "ability",
+  "contentId": "otr.ability.sandbox.bomb",
+  "runtimeId": 9103,
+  "status": "active",
+  "displayName": "Bomb 3x3",
+  "abilityClass": "special",
+  "hotbarSlot": 4,
+  "combat": { "damage": 40, "speed": 0.0, "range": 1.5, "duration": 0.35, "energyCost": 0 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox" }
+}

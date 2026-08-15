@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "schema": "otraycast.scripts.manifest.v1",
+  "note": "Allowlisted Luau. Host loads phase/dependsOn. No require/dofile.",
+  "scripts": [
+    { "name": "otr_result", "path": "data/scripts/lib/otr_result.luau", "type": "lib", "phase": 1, "enabled": true, "dependsOn": [] },
+    { "name": "otr_ns", "path": "data/scripts/lib/otr_ns.luau", "type": "lib", "phase": 2, "enabled": true, "dependsOn": ["otr_result"] },
+    { "name": "heartbeat", "path": "data/scripts/globalevents/heartbeat.luau", "type": "globalevent", "phase": 6, "enabled": true, "dependsOn": ["otr_ns"] },
+    { "name": "sandbox_hooks", "path": "data/scripts/creaturescripts/sandbox_hooks.luau", "type": "creaturescript", "phase": 8, "enabled": true, "dependsOn": ["otr_ns"] },
+    { "name": "fary_talk", "path": "data/scripts/talkactions/fary.luau", "type": "talkaction", "phase": 8, "enabled": true, "dependsOn": ["otr_ns"] },
+    { "name": "oracle_talk", "path": "data/scripts/talkactions/oracle.luau", "type": "talkaction", "phase": 8, "enabled": true, "dependsOn": ["otr_ns"] },
+    { "name": "merchant_talk", "path": "data/scripts/talkactions/merchant.luau", "type": "talkaction", "phase": 8, "enabled": true, "dependsOn": ["otr_ns"] }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schema": "otraycast.quest.v1",
+  "kind": "quest",
+  "contentId": "otr.quest.sandbox.first_blood",
+  "runtimeId": 9401,
+  "status": "active",
+  "title": "First Blood",
+  "journalEntryId": "sandbox_first_blood",
+  "completeOn": { "kills": 1 },
+  "stages": [
+    { "id": "kill_one", "title": "Defeat one hostile", "objectives": ["killCount >= 1"] }
+  ],
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "S9 stub" }
+}

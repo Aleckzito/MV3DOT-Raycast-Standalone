@@ -1,0 +1,11 @@
+{
+  "schema": "otraycast.item.v1",
+  "kind": "item",
+  "contentId": "otr.item.sandbox.large_hp",
+  "runtimeId": 9203,
+  "status": "active",
+  "displayName": "Large HP",
+  "stackLimit": 20,
+  "combat": { "heal": 50 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox" }
+}

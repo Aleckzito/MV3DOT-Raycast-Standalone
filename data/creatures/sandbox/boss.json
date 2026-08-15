@@ -1,0 +1,11 @@
+{
+  "schema": "otraycast.actor.v1",
+  "kind": "monster",
+  "contentId": "otr.actor.sandbox.boss",
+  "runtimeId": 9003,
+  "status": "active",
+  "name": "EliteBoss",
+  "displayName": "Elite Boss",
+  "combat": { "maxHp": 150, "speed": 2.1, "attackDamage": 25 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "LocalEnemy ENEMY_BOSS" }
+}

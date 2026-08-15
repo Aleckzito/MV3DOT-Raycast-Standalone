@@ -1,0 +1,12 @@
+{
+  "schema": "otraycast.loot.sandbox.v1",
+  "version": 1,
+  "energyPickupCells": 3,
+  "tables": {
+    "grunt": { "exp": 0, "smallHpChance": 60, "largeHpChance": 20, "energyChance": 0 },
+    "archer": { "exp": 0, "smallHpChance": 60, "largeHpChance": 20, "energyChance": 0 },
+    "boss": { "exp": 50, "smallHpChance": 0, "largeHpChance": 100, "largeHpCount": 2, "staminaBonus": 1800 },
+    "bat": { "exp": 0, "smallHpChance": 60, "largeHpChance": 0, "energyChance": 0 },
+    "crawler": { "exp": 0, "smallHpChance": 0, "largeHpChance": 0, "energyChance": 100 }
+  }
+}

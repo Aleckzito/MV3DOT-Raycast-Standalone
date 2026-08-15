@@ -1,0 +1,12 @@
+{
+  "schema": "otraycast.ability.v1",
+  "kind": "ability",
+  "contentId": "otr.ability.sandbox.melee",
+  "runtimeId": 9102,
+  "status": "active",
+  "displayName": "Melee",
+  "abilityClass": "attack",
+  "hotbarSlot": 3,
+  "combat": { "damage": 30, "speed": 0.0, "range": 0.9, "duration": 0.18, "energyCost": 0 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox" }
+}

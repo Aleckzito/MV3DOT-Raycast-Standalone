@@ -1,0 +1,11 @@
+{
+  "schema": "otraycast.item.v1",
+  "kind": "item",
+  "contentId": "otr.item.sandbox.energy_cell",
+  "runtimeId": 9201,
+  "status": "active",
+  "displayName": "Energy Cell",
+  "stackLimit": 99,
+  "combat": { "energyCells": 3 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox" }
+}

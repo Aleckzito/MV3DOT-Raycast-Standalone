@@ -1,0 +1,43 @@
+# Journal — Prototipo Standalone MV3D
+
+- 1. Bootstrap prototipo standalone MV3D
+- 2. Físicas locales, grid 3x3x3 y cubito fantasma
+- 3. Fix matemático DDA y visualización OSG (cubito cyan)
+- 4. Input, mutación de grilla y mesher local
+- 5. Persistencia JSON y colisión física del Dummy Actor
+- 6. Character controller, colisión X/Z y cámara de juego
+- 7. Controles relativos (tank), cámara suavizada y Proto-Fary
+- 8. Fary S10 (Lead Weave) y balística local (proyectiles)
+- 9. Target Dummies, balística vs entidades y Fary Rearguard (S10)
+- 10. IA de enemigos (Chase), daño melee y salud del jugador
+- 11. Target Lock-On, indicador visual y auto-aim
+- 12. Combate melee (área frontal) y HUD 2D (salud/target)
+- 13. Game feel (knockback), spawners y loot de curación
+- 14. Loot tipo Mega Man (chico/grande) y kill counter
+- 15. Stamina y Haste Burst (dash evasivo)
+- 16. Survival Timer (HH:MM:SS), drops de EXP y leveling
+- 17. Arreglo de controles (WASD strafe), brújula y stamina de 2 horas
+- 18. Boss Élite (onda de choque AOE) y drops de alto valor
+- 19. Cámara con visión X-Ray (translucidez de voxels por oclusión)
+- 20. Terreno destructible (mini-voxels) y partículas de escombros
+- 21. Texto flotante de combate (damage numbers y heal text)
+- 22. Fixes de game feel (escala de texto, tecla F) y coberturas destructibles
+- 24. Físicas de cubos dinámicos, companion Fary y cámara tri-modo
+- 25. Escala 1:1 osg::Box, modo selección (Tab), disparo lineal y bomba 3x3
+- 26. Micro-gap 0.996, Fary cúbica, teclas 1-4, ghost preview y AABB de cubos
+- 27. Hotbar 1-4 / SHIFT+1-4, Tab entidades y Shift+Tab cubos
+- 28. Radar retaguardia cableado a LocalBuddyController (LEAD_WEAVE / REARGUARD)
+- 29. PIP Fary (espejo), ciclo C Brazo/Orbita y mouse en orbita
+- 30. Arranque en Play/Brazo; trackball de prueba reservado a F2
+- 31. Arqueros verdes, flechas hostiles, colapso Tetris y PIP condicional
+- 33. Rocas 2x2 café (caída Dig Dug, deslizamiento Pengo, lock-on)
+- 34. Arquitecto Azul: IA, blueprints y construcción capa a capa
+- 35. Murciélago volador hit-and-run y sinergia PIP Fary
+- 36. Lock-on hostil aislado (TAB) y Pengo SHIFT+2 / SHIFT+TAB
+- 37. Rayo Hunter hitscan, balas rectas 32 u/s, Crawler acorazado y celdas de energía
+- 38. Boss Centipede arcade: segmentos, split, mini-voxeles ladrillo y TAB inverso
+- 39. Gravedad de drops, imán de recolección y fetch aéreo de Fary S10
+- 40. Auto-aim en balas (tecla 2), láser Hunter en tecla 5 y hotbar 1-5
+- 41. Data JSON + Luau sandbox: catálogo, pack, spawns, abilities y hooks locales
+- 42. Mapa voxel al boot, F9 reload, playerSpawn; NPCs Oracle/Merchant en el sandbox
+- 43. Quest First Blood (1 kill) + storage local; Oracle otorga vocación Scout

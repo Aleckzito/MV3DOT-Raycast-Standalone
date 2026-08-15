@@ -1,0 +1,11 @@
+{
+  "schema": "otraycast.actor.v1",
+  "kind": "monster",
+  "contentId": "otr.actor.sandbox.centipede",
+  "runtimeId": 9006,
+  "status": "active",
+  "name": "Centipede",
+  "displayName": "Centipede",
+  "combat": { "maxHp": 25, "speed": 4.5, "attackDamage": 12, "segmentHp": 25 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "LocalCentipede per-segment HP" }
+}

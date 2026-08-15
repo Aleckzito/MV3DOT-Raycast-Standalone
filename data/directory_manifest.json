@@ -1,0 +1,28 @@
+{
+  "schema": "otraycast.data.directory_manifest.v1",
+  "version": 1,
+  "status": "sandbox",
+  "rules": [
+    "Luau executable code lives only below data/scripts.",
+    "Gameplay definitions outside data/scripts use JSON.",
+    "Standalone voxel world is data/worlds/standalone_sandbox.json.",
+    "Spawn/POI meta is data/worlds/standalone_sandbox.meta.json.",
+    "No protocol, no SQLite, no Canary GPL libs."
+  ],
+  "directories": [
+    { "path": "abilities", "lane": "json" },
+    { "path": "content", "lane": "json" },
+    { "path": "creatures", "lane": "json" },
+    { "path": "items", "lane": "json" },
+    { "path": "loot", "lane": "json" },
+    { "path": "npc", "lane": "json" },
+    { "path": "packs", "lane": "json" },
+    { "path": "player", "lane": "json" },
+    { "path": "quests", "lane": "json" },
+    { "path": "schemas", "lane": "json" },
+    { "path": "scripts", "lane": "luau" },
+    { "path": "ui", "lane": "json" },
+    { "path": "vocations", "lane": "json" },
+    { "path": "worlds", "lane": "json" }
+  ]
+}

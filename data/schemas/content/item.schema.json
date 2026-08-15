@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otraycast.local/schemas/content/item.schema.json",
+  "title": "OTRaycast item definition (canonical)",
+  "type": "object",
+  "additionalProperties": true,
+  "allOf": [{ "$ref": "identity.schema.json" }],
+  "required": ["kind", "schema"],
+  "properties": {
+    "schema": { "const": "otraycast.item.v1" },
+    "kind": { "const": "item" },
+    "icon": { "type": "string" },
+    "weight": { "type": "number", "minimum": 0 },
+    "stackLimit": { "type": "integer", "minimum": 1, "maximum": 10000 },
+    "equipmentSlot": {
+      "type": "string",
+      "enum": ["", "head", "armor", "legs", "feet", "weapon", "shield", "ammo", "bag", "ring", "necklace", "focus"]
+    },
+    "weaponClass": { "type": "string" },
+    "ammoClass": { "type": "string" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "definitionPath": { "type": "string" }
+  }
+}

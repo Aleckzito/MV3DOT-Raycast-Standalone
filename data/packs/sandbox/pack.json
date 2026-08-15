@@ -1,0 +1,38 @@
+{
+  "schema": "otraycast.content_pack.v1",
+  "packId": "otr.pack.sandbox",
+  "version": 1,
+  "status": "active",
+  "displayName": "Sandbox",
+  "requires": [],
+  "content": {
+    "maps": ["data/worlds/standalone_sandbox.json"],
+    "items": [
+      "otr.item.sandbox.energy_cell",
+      "otr.item.sandbox.small_hp",
+      "otr.item.sandbox.large_hp"
+    ],
+    "creatures": [
+      "otr.actor.sandbox.grunt",
+      "otr.actor.sandbox.archer",
+      "otr.actor.sandbox.boss",
+      "otr.actor.sandbox.bat",
+      "otr.actor.sandbox.crawler",
+      "otr.actor.sandbox.centipede",
+      "otr.actor.sandbox.architect",
+      "otr.actor.companion.fary"
+    ],
+    "npcs": ["otr.npc.sandbox.oracle", "otr.npc.sandbox.merchant"],
+    "quests": ["otr.quest.sandbox.first_blood"],
+    "vocations": ["otr.vocation.none", "otr.vocation.scout"],
+    "abilities": [
+      "otr.ability.sandbox.jump",
+      "otr.ability.sandbox.gun",
+      "otr.ability.sandbox.melee",
+      "otr.ability.sandbox.bomb",
+      "otr.ability.sandbox.hunter_laser"
+    ],
+    "events": []
+  },
+  "notes": "Roster of the live standalone prototype. Pack references contentIds."
+}

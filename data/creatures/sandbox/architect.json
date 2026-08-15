@@ -1,0 +1,11 @@
+{
+  "schema": "otraycast.actor.v1",
+  "kind": "monster",
+  "contentId": "otr.actor.sandbox.architect",
+  "runtimeId": 9007,
+  "status": "active",
+  "name": "Architect",
+  "displayName": "Blue Architect",
+  "combat": { "maxHp": 1, "speed": 3.0, "attackDamage": 0 },
+  "provenance": { "implementation": "original", "assetLicense": "user-owned-sandbox", "notes": "LocalArchitect builder, not a HP fighter" }
+}
