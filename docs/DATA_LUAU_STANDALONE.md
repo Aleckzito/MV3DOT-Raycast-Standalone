@@ -26,7 +26,7 @@ Fallo de catálogo o script = WARN + defaults del prototipo. El exe arranca igua
 | S6 | Hooks `onKill` / `onFire` / `onHunter` / `onLockOn` / `onLoot` | hecho |
 | S7 | Inventario local (JSON stub + `LocalInventory`) | stub data + clase mínima |
 | S8 | NPCs / talkactions en el voxel | hecho: Oracle/Merchant cajas + talk al acercarse |
-| S9 | Quests / storage | hecho: First Blood (1 kill) + `sandbox_storage.json` |
+| S9 | Quests / storage | hecho: First Blood (1 kill) + `save/sandbox_storage.json` |
 | S10 | Vocaciones sobre DummyActor | hecho: Oracle otorga Scout tras First Blood |
 | S11 | Isla OTBM como segundo mundo | no portar; formato incompatible |
 
@@ -62,6 +62,30 @@ Si sale `[arena] 4 cover pillars (default C++)`, el JSON no se leyó.
 
 ---
 
+## Plantillas vs partidas
+
+El estado del jugador vive en dos sitios distintos y **no se pisan**:
+
+| Ruta | Qué es | Git |
+|---|---|---|
+| `data/player/sandbox_storage.json` | Plantilla: quests y vocación al empezar | versionado, **solo lectura** |
+| `data/player/sandbox_inventory.json` | Plantilla: inventario inicial | versionado, **solo lectura** |
+| `data/player/save/sandbox_storage.json` | Partida: flags de quest + `vocationId` | ignorado |
+| `data/player/save/sandbox_inventory.json` | Partida: stacks del inventario | ignorado |
+
+Regla, en `src/standalone/PlayerSave.{h,cpp}`:
+
+- **Leer** → `playerLoadPath()`: la partida si existe, si no la plantilla.
+- **Escribir** → `playerSavePath()`: siempre bajo `data/player/save/`.
+
+El juego nunca escribe sobre las plantillas, así que jugar no ensucia el diff del repo.
+Para empezar de cero, borra `data/player/save/`: se regenera desde la plantilla.
+
+> La plantilla de storage debe quedar en estado inicial (`flags: {}`, `vocationId: 0`).
+> Si la commiteas con una partida dentro, todo clon arranca con esa quest ya hecha.
+
+---
+
 ## Hotbar
 
 HUD vivo: `[1] Jump | [2] Gun (Auto) | [3] Melee | [4] Bomb | [5] Laser`
@@ -89,6 +113,6 @@ El contrato BASE de 8 slots RPG queda en `data/ui/hotbar_roles_ref.json` (refere
 
 ### S9 / S10 (sandbox)
 
-- Matar 1 hostil completa `otr.quest.sandbox.first_blood` (popup + `data/player/sandbox_storage.json`).
+- Matar 1 hostil completa `otr.quest.sandbox.first_blood` (popup + `data/player/save/sandbox_storage.json`).
 - Acercarse al Oracle con la quest `done` y vocación 0 otorga Scout (persistido).
 - Luau `otr.hooks.onQuest` / `onVocation` solo loguean; C++ es la autoridad.
