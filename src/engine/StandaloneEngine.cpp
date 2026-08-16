@@ -127,6 +127,12 @@ const osg::Vec4 kFloatDmgPlayer(1.00f, 0.18f, 0.12f, 1.0f);
 const osg::Vec4 kFloatHeal(0.25f, 1.00f, 0.32f, 1.0f);
 const osg::Vec4 kFloatExp(0.10f, 0.85f, 1.00f, 1.0f);
 const osg::Vec4 kFloatHunter(0.25f, 0.95f, 1.00f, 1.0f);
+
+// 5.4 Cursor de construccion: alcance del rayo desde los ojos y cuanto se
+// inclina hacia abajo. 0.45 rad hace que toque el suelo a poco mas de dos
+// unidades, es decir justo delante del jugador.
+const float kBuildCursorReach = 5.0f;
+const float kBuildCursorDrop = 0.45f;
 const int kHunterCellMax = 99;
 const int kHunterStartCells = 6;
 const float kDropGravity = 9.81f;
@@ -969,19 +975,38 @@ void StandaloneEngine::update(float deltaTime)
     }
     updateCameraXRay();
 
-    // 5.4 / 5.5 Rayo simulado hacia el suelo y=0, barriendo +X.
-    m_phantomProbeX += deltaTime * 0.40f;
-    if (m_phantomProbeX > TILE_SIZE * 2.0f) {
-        m_phantomProbeX = 0.0f;
-        m_phantomCursor.resetDda();
-        m_lastPhantomVx = 0x7FFFFFFF;
-        m_lastPhantomVy = 0x7FFFFFFF;
-        m_lastPhantomVz = 0x7FFFFFFF;
-    }
+    // 5.4 / 5.5 El cursor sale de los ojos del jugador hacia donde mira, en vez
+    // del rayo de demostracion que barria en +X: se construia donde pasara el
+    // barrido en ese instante, no donde apuntabas.
+    //
+    // El pitch del jugador no esta cableado (siempre 0), asi que un rayo
+    // horizontal a la altura de los ojos no llegaria nunca al suelo. Se inclina
+    // un angulo fijo hacia abajo para que caiga justo delante; si hay un bloque
+    // en medio, el DDA se detiene antes y el cursor queda en su cara exterior,
+    // que es lo que permite apilar.
+    const float cursorYaw = m_dummyActor.yaw();
+    const float cursorPitch = m_dummyActor.pitch() - kBuildCursorDrop;
+    const float cursorCos = std::cos(cursorPitch);
+    const osg::Vec3 cursorEye(
+        m_dummyActor.x(),
+        m_dummyActor.y() + m_dummyActor.height() * 0.72f,
+        m_dummyActor.z());
+    const osg::Vec3 cursorDir(
+        std::sin(cursorYaw) * cursorCos,
+        std::sin(cursorPitch),
+        std::cos(cursorYaw) * cursorCos);
+    const osg::Vec3 cursorEnd = cursorEye + cursorDir * kBuildCursorReach;
+    m_phantomProbeX = cursorEnd.x();
+
+    // El DDA arrastra un trail: con celda previa avanza UNA celda por llamada,
+    // que servia para el barrido lento pero aqui hace que el cursor persiga la
+    // mirada durante decenas de frames y oscile sin llegar. Se recastea entero
+    // cada frame para que apunte donde miras ya, no dentro de un segundo.
+    m_phantomCursor.resetDda();
 
     const SnappedPosition snap = m_phantomCursor.calculateSnappedPosition(
-        m_phantomProbeX, 2.0f, 0.5f,
-        m_phantomProbeX, 0.0f, 0.5f,
+        cursorEye.x(), cursorEye.y(), cursorEye.z(),
+        cursorEnd.x(), cursorEnd.y(), cursorEnd.z(),
         &m_miniVoxels);
 
     // 7.4 Cubito cyan exactamente en la celda DDA.
@@ -1008,10 +1033,10 @@ void StandaloneEngine::update(float deltaTime)
                       << " dv=(" << dvx << ", " << dvy << ", " << dvz << ")"
                       << "\n";
         }
-        // El salto de celda si se avisa siempre: es un fallo del DDA, no ruido.
-        if (std::abs(dvx) > 1 || std::abs(dvy) > 1 || std::abs(dvz) > 1) {
-            std::cout << "[phantom] WARN skip detected\n";
-        }
+        // Ya no se avisa de saltos de celda. Ese aviso vigilaba la invariante
+        // 5.6 (un paso por llamada), que solo tenia sentido con el trail del
+        // barrido: ahora el rayo se recastea entero cada frame, asi que un dv
+        // grande no es un fallo del DDA sino que el jugador giro.
         m_lastPhantomVx = snap.vx;
         m_lastPhantomVy = snap.vy;
         m_lastPhantomVz = snap.vz;
