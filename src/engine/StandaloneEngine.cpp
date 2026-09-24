@@ -332,7 +332,7 @@ bool StandaloneEngine::initialize(const std::string& worldJsonPath)
         worldRelative = m_content.voxelWorldPath();
     }
     if (worldRelative.empty()) {
-        worldRelative = "data/worlds/standalone_sandbox.json";
+        worldRelative = "data/worlds/sandbox/standalone_sandbox.json";
     }
     m_worldJsonPath = LocalContentRegistry::resolve(worldRelative);
 
