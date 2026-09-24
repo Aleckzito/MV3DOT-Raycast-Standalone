@@ -21,7 +21,7 @@ namespace {
 int generateArena(int argc, char** argv)
 {
     rc::standalone::ArenaSpec spec;
-    std::string worldRelative = "data/worlds/arena_120.json";
+    std::string worldRelative = "data/worlds/island/arena_120.json";
 
     if (argc > 2 && argv[2] != nullptr) {
         worldRelative = argv[2];

@@ -80,7 +80,7 @@ bool LocalContentRegistry::loadAll(const std::string& metaRelative)
         loadDefinition(entry);
     }
     const std::string metaPath = metaRelative.empty()
-                                     ? resolve("data/worlds/standalone_sandbox.meta.json")
+                                     ? resolve("data/worlds/sandbox/standalone_sandbox.meta.json")
                                      : resolve(metaRelative);
     if (!loadMeta(metaPath)) {
         std::cerr << "[content] WARN meta sin spawns: " << metaPath << "\n";

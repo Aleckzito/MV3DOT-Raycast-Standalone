@@ -2,7 +2,7 @@
   "schema": "otraycast.world.sandbox_meta.v1",
   "version": 1,
   "packId": "otr.pack.sandbox",
-  "voxelWorld": "data/worlds/standalone_sandbox.json",
+  "voxelWorld": "data/worlds/sandbox/standalone_sandbox.json",
   "playerSpawn": { "x": 4.0, "y": 5.0, "z": 4.0 },
   "spawns": [
     { "kind": "grunt", "contentId": "otr.actor.sandbox.grunt", "x": 4.0, "y": 0.0, "z": 1.2 },

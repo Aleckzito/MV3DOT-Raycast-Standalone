@@ -51,7 +51,7 @@ graph TD
         OSGRenderer --> Screen[Pantalla / Canvas 1ª Persona + Editor Overlay]
         
         subgraph Direct Local Storage
-            VoxelGrid <---> LocalJSON[data/worlds/standalone_sandbox.json]
+            VoxelGrid <---> LocalJSON[data/worlds/sandbox/standalone_sandbox.json]
         end
     end
 ```
@@ -76,7 +76,7 @@ graph TD
 3. **Reconstrucción Inmediata de Malla (`OsgChunkMesher`):**
    - En lugar de esperar un paquete `OP_RC_WORLD_CHUNK`, la malla OSG de la región afectada se invalida y regenera localmente en el mismo tick de render.
 4. **Exportación e Importación Directa:**
-   - Carga y guardado directo de la matriz de voxels hacia/desde `data/worlds/standalone_sandbox.json` sin intermediación de base de datos o servidor.
+   - Carga y guardado directo de la matriz de voxels hacia/desde `data/worlds/sandbox/standalone_sandbox.json` sin intermediación de base de datos o servidor.
 
 ### C. Controlador Local de Animaciones y FX
 1. **State Machine de Animaciones en C++:**
