@@ -7,8 +7,6 @@
 #include "TerrainGenerator.h"
 #include "VoxelMaterials.h"
 
-#include <SDL.h>
-
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -16,7 +14,7 @@
 
 namespace {
 
-// Genera la arena y sale. Sin SDL ni ventana: es una herramienta, no una partida.
+// Genera la arena y sale. Sin ventana: es una herramienta, no una partida.
 // El motor cargara el JSON despues, por la ruta de siempre.
 int generateArena(int argc, char** argv)
 {
@@ -429,7 +427,13 @@ int selfTestAim()
 
 } // namespace
 
-// 1.3 Punto de entrada local. SDL2 + OSG. Cero sockets.
+// 1.3 Punto de entrada local. Solo OSG. Cero sockets.
+//
+// SDL2 estuvo aqui y se retiro porque no hacia nada: en Windows el contexto
+// grafico lo crea OSG con su backend Win32 (ver StandaloneEngine::initialize),
+// asi que SDL nunca llego a tener ventana. Sin ventana propia, su cola de
+// eventos no emite SDL_QUIT jamas y el sondeo era codigo muerto; quien cierra la
+// aplicacion es el CLOSE_WINDOW de OSG, que ya tiene su manejador.
 int main(int argc, char** argv)
 {
     // Modo herramienta: --gen-arena [ruta relativa] [semilla]
@@ -449,15 +453,9 @@ int main(int argc, char** argv)
         worldJsonPath = argv[1];
     }
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0) {
-        std::cerr << "[standalone] SDL_Init failed: " << SDL_GetError() << "\n";
-        return 1;
-    }
-
     rc::standalone::StandaloneEngine engine;
     if (!engine.initialize(worldJsonPath)) {
         std::cerr << "[standalone] initialize failed\n";
-        SDL_Quit();
         return 1;
     }
 
@@ -465,14 +463,6 @@ int main(int argc, char** argv)
     auto last = Clock::now();
 
     while (!engine.shouldQuit()) {
-        // 2.3 Poll SDL solo para QUIT. Input de camara/editor no cableado.
-        SDL_Event ev;
-        while (SDL_PollEvent(&ev)) {
-            if (ev.type == SDL_QUIT) {
-                engine.requestQuit();
-            }
-        }
-
         const auto now = Clock::now();
         const float deltaTime = std::chrono::duration<float>(now - last).count();
         last = now;
@@ -482,6 +472,5 @@ int main(int argc, char** argv)
     }
 
     engine.shutdown();
-    SDL_Quit();
     return 0;
 }

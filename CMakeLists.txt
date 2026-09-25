@@ -50,14 +50,13 @@ add_library(rc_shared_math_grid STATIC
 target_include_directories(rc_shared_math_grid PUBLIC "${RC_SHARED_DIR}")
 target_compile_definitions(rc_shared_math_grid PUBLIC RC_STANDALONE=1)
 
-# --- OSG / SDL2 (mismo layout que raycast_client, sin ws2_32) ---
+# --- OSG (mismo layout que raycast_client, sin ws2_32 y sin SDL2) ---
 list(APPEND CMAKE_PREFIX_PATH
     "${RC_OSGVERSE_BUILD}/sdk"
     "${RC_OSGVERSE_BUILD}/vcpkg_installed/x64-windows"
 )
 
 find_package(OpenGL REQUIRED)
-find_package(SDL2 CONFIG REQUIRED)
 
 find_package(OpenSceneGraph QUIET COMPONENTS osgViewer osgGA osgDB osgUtil OpenThreads osgText)
 if(NOT OpenSceneGraph_FOUND)
@@ -213,17 +212,15 @@ target_include_directories(raycast_standalone PRIVATE
 )
 
 target_compile_definitions(raycast_standalone PRIVATE
-    SDL_MAIN_HANDLED
     NOMINMAX
     WIN32_LEAN_AND_MEAN
     RC_STANDALONE=1
 )
 
-# Cliente: OSG + SDL2 + OpenGL. Shared: math/grid. NO ws2_32.
+# Cliente: OSG + OpenGL. Shared: math/grid. NO ws2_32, NO SDL2.
 target_link_libraries(raycast_standalone PRIVATE
     rc_shared_math_grid
     ${RC_OSG_LIBS}
-    SDL2::SDL2
     OpenGL::GL
 )
 

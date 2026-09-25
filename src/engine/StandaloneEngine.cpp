@@ -471,10 +471,11 @@ bool StandaloneEngine::createOsgContext(const char* title)
     traits->stencil = 8;
     traits->readDISPLAY();
     traits->setUndefinedScreenDetailsToDefaultScreen();
+    // En Windows se pide el backend nativo explicitamente. Fuera de Windows se
+    // deja vacio para que OSG elija el suyo (X11, Cocoa): aqui se pedia "SDL",
+    // que era la unica razon por la que el proyecto enlazaba SDL2.
 #ifdef _WIN32
     traits->windowingSystemPreference = "Win32";
-#else
-    traits->windowingSystemPreference = "SDL";
 #endif
 
     osg::ref_ptr<osg::GraphicsContext> gc = osg::GraphicsContext::createGraphicsContext(traits.get());
