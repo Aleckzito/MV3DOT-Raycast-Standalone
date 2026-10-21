@@ -71,6 +71,18 @@ ubicación del ejecutable, no el directorio desde el que lo lanzas: gana el repo
 
 Documentación del contrato de contenido: [`docs/DATA_LUAU_STANDALONE.md`](docs/DATA_LUAU_STANDALONE.md).
 
+## Flujo de trabajo
+
+Los dos componentes propios (`rc_shared_math_grid` y `raycast_standalone`) siguen Vibe
+Coding acotado dentro de ODD para desarrollo cotidiano y SDD para auditorías o contratos
+sensibles. La orden operativa está en [`AGENTS.md`](AGENTS.md) y la guía completa, con
+gates reales de compilación, self-tests y Git/GitHub, en
+[`docs/WORKFLOW_ODD_SDD.md`](docs/WORKFLOW_ODD_SDD.md).
+
+Las tareas sustanciales pueden conservar una única cápsula recuperable usando
+[`.control/TASK_TEMPLATE.md`](.control/TASK_TEMPLATE.md); una tarea pequeña no necesita
+documentación adicional.
+
 ## Licencias
 
 Luau es MIT; se conservan `thirdparty/luau/LICENSE.txt` y `lua_LICENSE.txt`. No se
