@@ -6,7 +6,7 @@
   "displayName": "Sandbox",
   "requires": [],
   "content": {
-    "maps": ["data/worlds/standalone_sandbox.json"],
+    "maps": ["data/worlds/sandbox/standalone_sandbox.json"],
     "items": [
       "otr.item.sandbox.energy_cell",
       "otr.item.sandbox.small_hp",

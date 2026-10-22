@@ -36,20 +36,20 @@ Fuente BASE (solo lectura, no duplicar audits): `docs/plan/master_compendium.md`
 
 ## Dos mundos
 
-- `data/worlds/standalone_sandbox.json` — mini-voxels `[vx,vy,vz,matId]`. **El mapa manda**:
+- `data/worlds/sandbox/standalone_sandbox.json` — mini-voxels `[vx,vy,vz,matId]`. **El mapa manda**:
   si carga, `spawnDefaultPillars()` no corre. Si falta, WARN + arena hardcodeada.
-- `data/worlds/standalone_sandbox.meta.json` — packId, `voxelWorld`, `playerSpawn`, spawns.
+- `data/worlds/sandbox/standalone_sandbox.meta.json` — packId, `voxelWorld`, `playerSpawn`, spawns.
   No es el JSON v2 OTBM.
 - `rookgaard_test.json` no se carga aquí.
 
-Prioridad de ruta del mapa: `argv[1]` > `voxelWorld` del meta > `data/worlds/standalone_sandbox.json`.
+Prioridad de ruta del mapa: `argv[1]` > `voxelWorld` del meta > `data/worlds/sandbox/standalone_sandbox.json`.
 Se resuelve contra la raíz única (ver más abajo), nunca relativa cruda.
 
 Las rocas (`HeavyBoulder2x2`) vacían su celda, así que siempre se colocan **después** del mapa.
 
 ### Editar el mapa sin recompilar
 
-1. F5 en el juego guarda el grid actual a `data/worlds/standalone_sandbox.json`.
+1. F5 en el juego guarda el grid actual a `data/worlds/sandbox/standalone_sandbox.json`.
 2. F9 recarga ese archivo en caliente (rebuild de mesh + reset del DDA).
 
 Verificación en consola: `[world-io] loaded N voxels <- <ruta absoluta>` seguido de `[world] mapa <- ...`.
@@ -100,7 +100,7 @@ mini-voxels (40×40 tiles). **No toca el pipeline**: produce un `MiniVoxelGrid`,
 vuelca con el `saveWorld` de siempre, y el motor lo carga por la ruta normal.
 
 ```bash
-raycast_standalone.exe --gen-arena data/worlds/arena_120.json 1337
+raycast_standalone.exe --gen-arena data/worlds/island/arena_120.json 1337
 ```
 
 Escribe dos archivos: el mapa y su `*.meta.json` con `voxelWorld`, `playerSpawn` y
@@ -118,7 +118,7 @@ y no `<random>`, cuyas distribuciones no están garantizadas entre implementacio
 ### Cómo jugarla
 
 ```bash
-raycast_standalone.exe data/worlds/arena_120.json
+raycast_standalone.exe data/worlds/island/arena_120.json
 ```
 
 Carga el terreno **y sus spawns**: un mapa pedido por `argv` usa su

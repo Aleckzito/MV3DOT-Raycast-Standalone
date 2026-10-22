@@ -5,8 +5,8 @@
   "rules": [
     "Luau executable code lives only below data/scripts.",
     "Gameplay definitions outside data/scripts use JSON.",
-    "Standalone voxel world is data/worlds/standalone_sandbox.json.",
-    "Spawn/POI meta is data/worlds/standalone_sandbox.meta.json.",
+    "Standalone voxel world is data/worlds/sandbox/standalone_sandbox.json.",
+    "Spawn/POI meta is data/worlds/sandbox/standalone_sandbox.meta.json.",
     "No protocol, no SQLite, no Canary GPL libs."
   ],
   "directories": [

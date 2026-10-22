@@ -46,7 +46,7 @@ raycast_standalone.exe
 ```
 
 Acepta un mapa de voxeles opcional como primer argumento; si no, manda `voxelWorld` del
-meta del pack, y en último término `data/worlds/standalone_sandbox.json`.
+meta del pack, y en último término `data/worlds/sandbox/standalone_sandbox.json`.
 
 Teclas: `1` salto, `2` gun, `3` melee, `4` bomba, `5` láser, `C` cámara, `F2` editor,
 `F5` guardar mapa, `F9` recargarlo en caliente.
